@@ -574,8 +574,8 @@
             Duración del feedback
             <select id="feedbackDurationSelect">
               <option value="500">Estándar (500ms)</option>
-              <option value="750" selected>Medio (750ms)</option>
-              <option value="1000">Lento(1000ms)</option>
+              <option value="750" >Medio (750ms)</option>
+              <option value="1000" selected>Lento(1000ms)</option>
               <option value="1500">Muy Lento (1500ms)</option>
             </select>
           </label>
@@ -591,8 +591,8 @@
           <label>
             Modo de reversión
             <select id="reversalModeSelect">
-              <option value="predetermined" selected>Modo Pred. (Predeterminado)</option>
-              <option value="criterion">Modo Crit. (Por Criterio)</option>
+              <option value="predetermined" selected>Modo por defecto </option>
+              <option value="criterion">Modo Criterio</option>
             </select>
           </label>
           <label>
@@ -2022,7 +2022,7 @@
             previewFixation.style.display = 'block';
             
             // Duración aleatoria de la cruz (igual que en la tarea real)
-            const fixationDuration = 500 + Math.random() * 500;
+            const fixationDuration = 250 + Math.random() * 500;
             setTimeout(() => {
               previewFixation.style.display = 'none';
               previewMachines.style.opacity = '1';
@@ -2051,8 +2051,8 @@
     let STIMULUS_TIMEOUT_MS = 6000; // se actualiza al iniciar según el selector
     let FEEDBACK_MS = 750;
     const SELECTION_ANIMATION_MS = 200;
-    const FIXATION_MIN_MS = 500;
-    const FIXATION_MAX_MS = 1000;
+    const FIXATION_MIN_MS = 250;
+    const FIXATION_MAX_MS = 750;
     
     let feedbackProbability = 0.7;
     let trialCount = 0;
