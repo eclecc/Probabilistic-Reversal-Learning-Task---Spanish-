@@ -97,6 +97,31 @@
       #results { padding: 18px; }
       #results h3 { font-size: 1.15rem; }
     }
+
+    /* Mejoras adicionales para móvil en modo vertical (portrait) */
+    @media (max-width: 480px) and (orientation: portrait) {
+      /* Reducir aún más el tamaño de los estímulos en pantallas pequeñas verticales */
+      #stimuli .stimulus svg { 
+        width: min(38vw, 130px); 
+        height: auto; 
+        max-height: 25vh;
+      }
+      #stimuli .stimulus div { 
+        font-size: clamp(60px, 20vw, 130px) !important; 
+      }
+      
+      /* Ajustar el área de tarea para evitar desbordamientos */
+      #task-area { 
+        min-height: 200px;
+        max-height: 50vh;
+      }
+      
+      /* Peces: asegurar que encaja en pantalla vertical */
+      .lake-stimulus { 
+        width: min(85vw, 400px); 
+        max-height: 50vh;
+      }
+    }
   </style>
 
   <!-- Estilo elegante y minimalista -->
@@ -270,7 +295,7 @@
     /* ⭐ FEEDBACK EN EL CENTRO ENTRE LAS MÁQUINAS */
          /* ⭐ FEEDBACK SIN FONDO - SOLO TEXTO FLOTANTE */
       #feedback { 
-        font-size: 2.2rem;
+        font-size: 3.3rem;
         font-weight: 400;
         display: flex;
         align-items: center;
@@ -491,7 +516,7 @@
       top: 20%;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 2.5rem;
+      font-size: 3.75rem;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -546,9 +571,9 @@
       }
 
       #feedback {
-        font-size: 1rem;
+        font-size: 1.5rem;
         min-height: 45px;
-        max-width: 160px;
+        max-width: 200px;
       }
 
       #coins-container {
@@ -658,6 +683,13 @@
             <select id="practiceBlockSelect">
               <option value="yes" >Sí</option>
               <option value="no" selected>No (ir directo a la prueba)</option>
+            </select>
+          </label>
+          <label>
+            Secuencia
+            <select id="sequenceSelect">
+              <option value="feedback-without-stimuli" selected>Feedback sin estímulos</option>
+              <option value="feedback-with-stimuli">Feedback con estímulos</option>
             </select>
           </label>
         </div>
@@ -2608,6 +2640,12 @@ function endPracticeBlock() {
 
     function showFeedback(isCorrect) {
       const stimulusType = document.getElementById('stimulusTypeSelect').value;
+      const sequenceMode = document.getElementById('sequenceSelect').value;
+      
+      // Hide stimuli if "feedback-without-stimuli" is selected
+      if (sequenceMode === 'feedback-without-stimuli') {
+        setStimuliVisible(false);
+      }
       
       if (stimulusType === 'peces') {
         // Feedback para versión peces
