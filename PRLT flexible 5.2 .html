@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Probabilistic Reversal Learning Task</title>
 
   <!-- Fuentes Google -->
@@ -45,6 +46,56 @@
     .stimulus.selected svg circle[fill="#fb3f7f"] {
       animation: leverPull 200ms ease-in-out;
       transform-origin: center;
+    }
+
+
+    /* Mejoras móvil (teléfono) */
+    .stimulus, .stimulus-preview, .lake-stimulus {
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 18px 12px; }
+      #instructions { padding: 18px; }
+      .stimuli-showcase { padding: 16px; }
+
+      /* Área de tarea más flexible */
+      #task-area { height: auto; min-height: 240px; }
+
+      /* En móvil dejamos de usar posicionamiento absoluto */
+      #stimuli {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 6px;
+      }
+      #stimuli .stimulus {
+        position: static;
+        top: auto;
+        left: auto;
+        right: auto;
+        transform: none;
+        margin: 0;
+      }
+      #stimuli .stimulus:first-child,
+      #stimuli .stimulus:last-child { left: auto; right: auto; }
+
+      /* Escalado de SVG/emoji de estímulos */
+      #stimuli .stimulus svg { width: min(42vw, 150px); height: auto; }
+      #stimuli .stimulus div { font-size: clamp(72px, 24vw, 150px) !important; }
+
+      /* Peces: que el lago se adapte al ancho */
+      .lake-stimulus { width: min(92vw, 512px); height: auto; }
+      .lake-stimulus svg { width: 100%; height: auto; display: block; }
+
+      /* Preview: reducir separación */
+      #preview-machines { gap: 24px !important; }
+
+      /* Resultados más compactos */
+      #results { padding: 18px; }
+      #results h3 { font-size: 1.15rem; }
     }
   </style>
 
@@ -574,8 +625,8 @@
             Duración del feedback
             <select id="feedbackDurationSelect">
               <option value="500">Estándar (500ms)</option>
-              <option value="750" >Medio (750ms)</option>
-              <option value="1000" selected>Lento(1000ms)</option>
+              <option value="750" selected>Medio (750ms)</option>
+              <option value="1000">Lento(1000ms)</option>
               <option value="1500">Muy Lento (1500ms)</option>
             </select>
           </label>
@@ -591,8 +642,8 @@
           <label>
             Modo de reversión
             <select id="reversalModeSelect">
-              <option value="predetermined" selected>Modo por defecto </option>
-              <option value="criterion">Modo Criterio</option>
+              <option value="predetermined" selected>Modo Pred. (Predeterminado)</option>
+              <option value="criterion">Modo Crit. (Por Criterio)</option>
             </select>
           </label>
           <label>
@@ -1981,7 +2032,20 @@
           runPreviewTrial(choice);
         }
       });
-      
+
+      // Escuchar taps/clicks (móvil/tablet)
+      previewMachines.addEventListener('pointerdown', function(e) {
+        if (!instructions || instructions.style.display === 'none') return;
+        if (previewBlocked) return;
+        const el = e.target.closest('.stimulus-preview');
+        if (!el) return;
+        const choice = el.getAttribute('data-choice');
+        if (!choice) return;
+        e.preventDefault();
+        stopPreviewTimer();
+        runPreviewTrial(choice);
+      }, { passive: false });
+
       function runPreviewTrial(choice) {
         previewBlocked = true;
         previewHasStarted = true;
@@ -2022,7 +2086,7 @@
             previewFixation.style.display = 'block';
             
             // Duración aleatoria de la cruz (igual que en la tarea real)
-            const fixationDuration = 250 + Math.random() * 500;
+            const fixationDuration = 500 + Math.random() * 500;
             setTimeout(() => {
               previewFixation.style.display = 'none';
               previewMachines.style.opacity = '1';
@@ -2051,8 +2115,8 @@
     let STIMULUS_TIMEOUT_MS = 6000; // se actualiza al iniciar según el selector
     let FEEDBACK_MS = 750;
     const SELECTION_ANIMATION_MS = 200;
-    const FIXATION_MIN_MS = 250;
-    const FIXATION_MAX_MS = 750;
+    const FIXATION_MIN_MS = 500;
+    const FIXATION_MAX_MS = 1000;
     
     let feedbackProbability = 0.7;
     let trialCount = 0;
@@ -2267,7 +2331,7 @@
             '</div>';
       
           // Oculta feedback/estímulos (o déjalos, como prefieras visualmente)
-          stimuliDiv.style.display = 'none';
+          setStimuliVisible(false);
           feedbackDiv.style.display = 'none';
       
           // Clave: esto hace que tu checkKey permita SPACE → startMainTask()
@@ -2402,8 +2466,20 @@ function endPracticeBlock() {
       showFixationCross();
     }
 
+    function setStimuliVisible(isVisible) {
+      // Nota: esta función sólo controla el display del contenedor de estímulos.
+      // IMPORTANTE: no llamar recursivamente (evita romper el flujo).
+      if (!stimuliDiv) return;
+      if (!isVisible) {
+        stimuliDiv.style.display = 'none';
+        return;
+      }
+      const isMobile = window.matchMedia && window.matchMedia('(max-width: 480px)').matches;
+      stimuliDiv.style.display = isMobile ? 'flex' : 'block';
+    }
+
     function showFixationCross() {
-      stimuliDiv.style.display = 'none';
+      setStimuliVisible(false);
       fixationCross.style.display = 'block';
       feedbackDiv.style.display = 'none'; // ⭐ OCULTAR FEEDBACK
       responseBlocked = true;
@@ -2417,7 +2493,7 @@ function endPracticeBlock() {
     }
 
     function showStimuli() {
-      stimuliDiv.style.display = 'block';
+      setStimuliVisible(true);
       feedbackDiv.style.display = 'none'; // ⭐ OCULTAR FEEDBACK
       responseBlocked = false;
       trialStartTime = Date.now();
@@ -2466,7 +2542,7 @@ function endPracticeBlock() {
         if (trialCount >= maxTrials) {
           feedbackDiv.style.display = 'flex'; // ⭐ MOSTRAR FEEDBACK
           feedbackDiv.textContent = 'Completado ✅';
-          stimuliDiv.style.display = 'none';
+          setStimuliVisible(false);
           showResults();
         } else {
           showFixationCross();
@@ -2694,7 +2770,7 @@ function endPracticeBlock() {
       if (trialCount >= maxTrials) {
         feedbackDiv.style.display = 'flex'; // ⭐ MOSTRAR FEEDBACK
         feedbackDiv.textContent = 'Completado ✅';
-        stimuliDiv.style.display = 'none';
+        setStimuliVisible(false);
         showResults();
       }
     }
@@ -3051,6 +3127,8 @@ function endPracticeBlock() {
       }
       const winStayPct   = winTotal   > 0 ? ((winStay / winTotal) * 100).toFixed(1) : 'N/A';
       const loseShiftPct = loseTotal  > 0 ? ((loseShift / loseTotal) * 100).toFixed(1) : 'N/A';
+      const loseStay = loseTotal - loseShift;
+      const loseStayPct  = loseTotal  > 0 ? ((loseStay / loseTotal) * 100).toFixed(1) : 'N/A';
       const winSwitchPct = winTotal   > 0 ? ((winSwitch / winTotal) * 100).toFixed(1) : 'N/A';
       const invalidLossSwitchPct = invalidLossTotal > 0 ? ((invalidLossSwitch / invalidLossTotal) * 100).toFixed(1) : 'N/A';
       const probabilisticSwitchRatePct = misleadTotal > 0 ? ((misleadSwitch / misleadTotal) * 100).toFixed(1) : 'N/A';
@@ -3183,7 +3261,32 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       /// FIN DEL DEBUG
 
       // === Análisis computacional (aprox. MLE) ===
-      const compHtml = fitAllModels(validTrials);
+      const compRes = fitAllModels(validTrials);
+      const compHtml = (compRes && typeof compRes === 'object') ? compRes.html : compRes;
+      const compFits = (compRes && typeof compRes === 'object' && compRes.fits) ? compRes.fits : {};
+
+      const fmt = (x, d=3) => {
+        if (x === null || x === undefined) return 'NA';
+        const n = Number(x);
+        return Number.isFinite(n) ? n.toFixed(d) : String(x);
+      };
+
+      const reportText = [
+        'CONDUCTUALES:',
+        `Win switch rate: ${winSwitchPct}% (${winSwitch}/${winTotal})`,
+        `Lose stay rate: ${loseStayPct}% (${loseStay}/${loseTotal})`,
+        `Errores perseverativos (rachas ≥2): ${perseverativeStreakTrials}`,
+        `Ensayos hasta criterio en aprendizaje: ${trialsToFirstCriterion}`,
+        `Ensayos hasta criterio en reversión: ${trialsToReversalCriterion}`,
+        '',
+        'COMPUTACIONALES (hBayesDM; MLE individual):',
+        `α (alpha; AB fictitious): ${fmt(compFits?.ql1Fict?.alpha)}`,
+        `β (beta; AB fictitious): ${fmt(compFits?.ql1Fict?.beta)}`,
+        `α+ (alpha feedback positivo; dual fictitious): ${fmt(compFits?.ql2Fict?.alphaR)}`,
+        `α− (alpha feedback negativo; dual fictitious): ${fmt(compFits?.ql2Fict?.alphaP)}`,
+        `EWA φ (phi): ${fmt(compFits?.ewa?.phi)}`,
+        `EWA ρ (rho): ${fmt(compFits?.ewa?.rho)}`
+      ].join('\n');
       
 
       // FINAL BLQOUE RESULTADOS COMP
@@ -3193,21 +3296,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       resultsDiv.innerHTML = `
         <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
           <h3 style="margin: 0 0 10px 0;">📋 Variables a reportar (copia y pega)</h3>
-          <textarea id="reportVariablesTextarea" readonly style="width: 100%; min-height: 140px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: #e5e7eb; font-size: 13px; line-height: 1.35;">CONDUCTUALES:
-- Win switch rate
-- Lose stay rate
-- Errores perseverativos (rachas ≥ 2)
-- Ensayos hasta criterio en aprendizaje (o no alcanzado)
-- Ensayos hasta criterio en reversión (o no alcanzado)
-
-COMPUTACIONALES (hBayesDM):
-- α (alpha)
-- β (beta)
-- α+ (alpha feedback positivo)
-- α− (alpha feedback negativo)
-- EWA φ (phi)
-- EWA ρ (rho)
-</textarea>
+          <textarea id="reportVariablesTextarea" readonly style="width: 100%; min-height: 140px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: #e5e7eb; font-size: 13px; line-height: 1.35;">${reportText}</textarea>
           <div style="display:flex; gap:10px; margin-top: 10px;">
             <button type="button" onclick="copyReportVariables()" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer;">Copiar</button>
             <span id="copyReportVariablesStatus" style="align-self:center; color: var(--text-muted); font-size: 0.9rem;"></span>
@@ -4506,7 +4595,16 @@ COMPUTACIONALES (hBayesDM):
         ${generateQualitativeAnalysis(fitQL1, fitQL2, fitABSticky, fitRS1, fitRS2, fitEWA)}
       `;
       
-        return compHtml;
+        return {
+          html: compHtml,
+          fits: {
+            ql1: fitQL1,
+            ql1Fict: fitQL1Fict,
+            ql2: fitQL2,
+            ql2Fict: fitQL2Fict,
+            ewa: fitEWA
+          }
+        };
       }
 
 
@@ -4516,28 +4614,61 @@ COMPUTACIONALES (hBayesDM):
     // Event listeners
     document.addEventListener('keydown', checkKey);
     
-    // Click handler for lake stimulus (peces version)
-    document.addEventListener('click', (e) => {
-      const lakeStimulus = e.target.closest('#lake-stimulus');
-      if (!lakeStimulus) return;
+    // Pointer/touch handler para seleccionar en móvil (genios y peces)
+    let __lastStimulusPointerAt = 0;
+
+    stimuliDiv.addEventListener('pointerdown', (e) => {
       if (responseBlocked) return;
-      if (stimuliDiv.style.display === "none") return;
-      
-      const stimulusType = document.getElementById('stimulusTypeSelect').value;
-      if (stimulusType !== 'peces') return;
-      
-      // Detectar si el click fue en el lado izquierdo o derecho
-      const rect = lakeStimulus.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const midpoint = rect.width / 2;
-      
-      const choice = clickX < midpoint ? 'A' : 'B';
-      
-      if (isPracticeMode) {
-        handlePracticeChoice(choice);
-      } else {
-        processChoice(choice);
+      if (stimuliDiv.style.display === 'none') return;
+
+      // Peces: decidir por mitad izquierda/derecha
+      const lakeStimulus = e.target.closest('#lake-stimulus');
+      if (lakeStimulus) {
+        const stimulusType = document.getElementById('stimulusTypeSelect').value;
+        if (stimulusType !== 'peces') return;
+        const rect = lakeStimulus.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const choice = x < rect.width / 2 ? 'A' : 'B';
+        __lastStimulusPointerAt = Date.now();
+        e.preventDefault();
+        if (isPracticeMode) handlePracticeChoice(choice);
+        else processChoice(choice);
+        return;
       }
+
+      // Genios/emoji: tocar el estímulo A o B
+      const stim = e.target.closest('#A, #B');
+      if (!stim) return;
+      const choice = stim.id;
+      __lastStimulusPointerAt = Date.now();
+      e.preventDefault();
+      if (isPracticeMode) handlePracticeChoice(choice);
+      else processChoice(choice);
+    }, { passive: false });
+
+    // Click fallback (evita doble disparo tras touch)
+    stimuliDiv.addEventListener('click', (e) => {
+      if (Date.now() - __lastStimulusPointerAt < 350) return;
+      if (responseBlocked) return;
+      if (stimuliDiv.style.display === 'none') return;
+
+      const lakeStimulus = e.target.closest('#lake-stimulus');
+      if (lakeStimulus) {
+        const stimulusType = document.getElementById('stimulusTypeSelect').value;
+        if (stimulusType !== 'peces') return;
+        const rect = lakeStimulus.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const choice = x < rect.width / 2 ? 'A' : 'B';
+        if (isPracticeMode) handlePracticeChoice(choice);
+        else processChoice(choice);
+        return;
+      }
+
+      const stim = e.target.closest('#A, #B');
+      if (!stim) return;
+      const choice = stim.id;
+      if (isPracticeMode) handlePracticeChoice(choice);
+      else processChoice(choice);
     });
     
     startBtn.addEventListener('click', () => {
