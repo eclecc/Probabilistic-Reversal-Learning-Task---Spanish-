@@ -54,33 +54,6 @@
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
-      /* Mejorar cursor en touch devices */
-      cursor: pointer;
-    }
-
-    /* Tablets y dispositivos medianos (481px - 768px) */
-    @media (min-width: 481px) and (max-width: 768px) {
-      /* Ajustar espaciado para tablets */
-      #stimuli .stimulus {
-        margin: 10px 40px;
-      }
-      
-      /* Tamaños intermedios para estímulos */
-      #stimuli .stimulus svg { 
-        width: min(35vw, 180px);
-        height: auto;
-      }
-      
-      /* Mejorar feedback visibility */
-      #feedback {
-        font-size: 2rem;
-      }
-      
-      /* Lago en tablets */
-      .lake-stimulus {
-        width: min(70vw, 450px);
-        height: auto;
-      }
     }
 
     @media (max-width: 480px) {
@@ -105,42 +78,17 @@
         right: auto;
         transform: none;
         margin: 0;
-        /* Añadir área de toque más grande para mejor interacción */
-        padding: 10px;
-        min-width: 44px; /* Tamaño mínimo recomendado para touch targets */
-        min-height: 44px;
       }
       #stimuli .stimulus:first-child,
       #stimuli .stimulus:last-child { left: auto; right: auto; }
 
-      /* Escalado de SVG/emoji de estímulos - mejorado para claridad */
-      #stimuli .stimulus svg { 
-        width: min(42vw, 160px); 
-        height: auto;
-        /* Mejorar nitidez en pantallas móviles */
-        shape-rendering: geometricPrecision;
-      }
-      #stimuli .stimulus div { 
-        font-size: clamp(80px, 26vw, 160px) !important;
-        /* Mejorar renderizado de emojis en Android */
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-      }
+      /* Escalado de SVG/emoji de estímulos */
+      #stimuli .stimulus svg { width: min(42vw, 150px); height: auto; }
+      #stimuli .stimulus div { font-size: clamp(72px, 24vw, 150px) !important; }
 
-      /* Peces: que el lago se adapte al ancho con mejor claridad */
-      .lake-stimulus { 
-        width: min(92vw, 512px); 
-        height: auto;
-        /* Mejorar área de toque */
-        min-height: 200px;
-      }
-      .lake-stimulus svg { 
-        width: 100%; 
-        height: auto; 
-        display: block;
-        /* Mejorar nitidez en móviles */
-        shape-rendering: geometricPrecision;
-      }
+      /* Peces: que el lago se adapte al ancho */
+      .lake-stimulus { width: min(92vw, 512px); height: auto; }
+      .lake-stimulus svg { width: 100%; height: auto; display: block; }
 
       /* Preview: reducir separación */
       #preview-machines { gap: 24px !important; }
@@ -148,18 +96,30 @@
       /* Resultados más compactos */
       #results { padding: 18px; }
       #results h3 { font-size: 1.15rem; }
-      
-      /* Mejorar visibilidad del feedback en móvil */
-      #feedback {
-        font-size: 1.8rem !important;
-        padding: 10px 20px;
-        /* Asegurar que sea bien visible sobre fondo oscuro */
-        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Mejoras adicionales para móvil en modo vertical (portrait) */
+    @media (max-width: 480px) and (orientation: portrait) {
+      /* Reducir aún más el tamaño de los estímulos en pantallas pequeñas verticales */
+      #stimuli .stimulus svg { 
+        width: min(38vw, 130px); 
+        height: auto; 
+        max-height: 25vh;
+      }
+      #stimuli .stimulus div { 
+        font-size: clamp(60px, 20vw, 130px) !important; 
       }
       
-      /* Marco de selección más visible en móvil */
-      .stimulus.selected {
-        box-shadow: 0 0 0 4px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.5) !important;
+      /* Ajustar el área de tarea para evitar desbordamientos */
+      #task-area { 
+        min-height: 200px;
+        max-height: 50vh;
+      }
+      
+      /* Peces: asegurar que encaja en pantalla vertical */
+      .lake-stimulus { 
+        width: min(85vw, 400px); 
+        max-height: 50vh;
       }
     }
   </style>
@@ -335,7 +295,7 @@
     /* ⭐ FEEDBACK EN EL CENTRO ENTRE LAS MÁQUINAS */
          /* ⭐ FEEDBACK SIN FONDO - SOLO TEXTO FLOTANTE */
       #feedback { 
-        font-size: 2.2rem;
+        font-size: 3.3rem;
         font-weight: 400;
         display: flex;
         align-items: center;
@@ -556,7 +516,7 @@
       top: 20%;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 2.5rem;
+      font-size: 3.75rem;
       font-weight: 600;
       display: flex;
       align-items: center;
@@ -611,9 +571,9 @@
       }
 
       #feedback {
-        font-size: 1rem;
+        font-size: 1.5rem;
         min-height: 45px;
-        max-width: 160px;
+        max-width: 200px;
       }
 
       #coins-container {
@@ -723,6 +683,13 @@
             <select id="practiceBlockSelect">
               <option value="yes" >Sí</option>
               <option value="no" selected>No (ir directo a la prueba)</option>
+            </select>
+          </label>
+          <label>
+            Secuencia
+            <select id="sequenceSelect">
+              <option value="feedback-without-stimuli" selected>Feedback sin estímulos</option>
+              <option value="feedback-with-stimuli">Feedback con estímulos</option>
             </select>
           </label>
         </div>
@@ -2448,10 +2415,6 @@
       triggerSelectionAnimation(choice);
       
       setTimeout(() => {
-        // Hide stimuli after selection frame
-        setStimuliVisible(false);
-        
-        // Show ONLY feedback (stimuli are already hidden)
         showFeedback(feedbackCorrect);
         
         setTimeout(() => {
@@ -2677,6 +2640,12 @@ function endPracticeBlock() {
 
     function showFeedback(isCorrect) {
       const stimulusType = document.getElementById('stimulusTypeSelect').value;
+      const sequenceMode = document.getElementById('sequenceSelect').value;
+      
+      // Hide stimuli if "feedback-without-stimuli" is selected
+      if (sequenceMode === 'feedback-without-stimuli') {
+        setStimuliVisible(false);
+      }
       
       if (stimulusType === 'peces') {
         // Feedback para versión peces
@@ -2852,12 +2821,7 @@ function endPracticeBlock() {
 
       triggerSelectionAnimation(choice);
 
-      // After 200ms selection animation, hide stimuli
       setTimeout(() => {
-        // Hide stimuli after selection frame
-        setStimuliVisible(false);
-        
-        // Calculate trial data
         if (trialCount === 0 && correctStimulus === null) correctStimulus = choice;
 
         const currentTrialNumber = trialCount + 1;
@@ -2924,8 +2888,6 @@ function endPracticeBlock() {
         coinsCountElem.style.color = coins >= 0 ? "var(--success)" : "var(--error)";
 
         logTrial(choice, correctStimulus, feedbackCorrect, rt);
-        
-        // Show ONLY feedback (stimuli are already hidden)
         showFeedback(feedbackCorrect);
         
         setTimeout(() => {
