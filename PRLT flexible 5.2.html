@@ -3097,6 +3097,20 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
     //   → Usar para análisis conductual (accuracy, learning curves)
     // - misleading (0/1): 1 si el feedback fue engañoso (reward ≠ actual_is_correct)
     // ========================================================================
+    
+    // Función auxiliar para escapar valores CSV que puedan contener comas o comillas
+    function csvEscape(value) {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      const str = String(value);
+      // Si contiene comas, comillas dobles, o saltos de línea, encerrar entre comillas y escapar comillas internas
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return '"' + str.replace(/"/g, '""') + '"';
+      }
+      return str;
+    }
+    
     function downloadCsv() {
       const participantId = document.getElementById('participantIdInput').value.trim() || 'unknown';
       const probGood = parseFloat(resultsDiv.dataset.probGood);
@@ -3105,14 +3119,52 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       const icvLearn = resultsDiv.dataset.icvLearn;
       const icvRev = resultsDiv.dataset.icvRev;
 
-      // ⭐ Añadir columnas de modo criterio si corresponde
-      let csvHeader = 'participant_id,trial,choice_code,reward,actual_is_correct,misleading,reversal,phase,trial_in_phase,is_reversal_first_trial,is_perseverative,is_regressive,rt,omission,prob_good,prob_bad,icv_global,icv_learn,icv_rev,reversal_mode';
+      // ⭐ Obtener valores de configuración de la tarea
+      const stimulusTypeSelect = document.getElementById('stimulusTypeSelect');
+      const currentStimulusType = stimulusTypeSelect ? stimulusTypeSelect.value : 'unknown';
       
-      if (reversalMode === 'criterion') {
-        csvHeader += ',reversal_number';
+      const feedbackDurationSelect = document.getElementById('feedbackDurationSelect');
+      const currentFeedbackDuration = feedbackDurationSelect ? parseInt(feedbackDurationSelect.value) : (typeof FEEDBACK_MS !== 'undefined' ? FEEDBACK_MS : 750);
+      
+      const responseDeadlineSelect = document.getElementById('responseDeadlineSelect');
+      let currentResponseDeadline = null;
+      if (responseDeadlineSelect) {
+        const deadlineVal = responseDeadlineSelect.value;
+        currentResponseDeadline = (deadlineVal === 'none') ? null : parseInt(deadlineVal);
+      } else if (typeof STIMULUS_TIMEOUT_MS !== 'undefined') {
+        currentResponseDeadline = STIMULUS_TIMEOUT_MS;
       }
-      csvHeader += '\n';
+
+      // ⭐ Definir metadatos de trazabilidad
+      const meta = {
+        meta_task_version: "PRLT_flexible_5.2_study",
+        meta_export_datetime_iso: new Date().toISOString(),
+        meta_timezone_offset_min: new Date().getTimezoneOffset(),
+        meta_user_agent: csvEscape(navigator.userAgent),
+        meta_screen_w: screen.width,
+        meta_screen_h: screen.height,
+        meta_viewport_w: window.innerWidth,
+        meta_viewport_h: window.innerHeight,
+        meta_device_pixel_ratio: window.devicePixelRatio,
+        meta_stimulus_type: currentStimulusType,
+        meta_reversal_mode: reversalMode,
+        meta_prob_good: probGood,
+        meta_prob_bad: probBad,
+        meta_feedback_duration_ms: currentFeedbackDuration,
+        meta_response_deadline_ms: currentResponseDeadline !== null ? currentResponseDeadline : 'null',
+        meta_n_trials_planned: trials.length
+      };
+
+      // ⭐ Construir cabecera del CSV combinando metadatos y columnas de datos
+      const metaKeys = Object.keys(meta);
+      const dataKeys = ['participant_id', 'trial', 'choice_code', 'reward', 'actual_is_correct', 'misleading', 'reversal', 'phase', 'trial_in_phase', 'is_reversal_first_trial', 'is_perseverative', 'is_regressive', 'rt', 'omission', 'prob_good', 'prob_bad', 'icv_global', 'icv_learn', 'icv_rev', 'reversal_mode'];
       
+      // Añadir columnas de modo criterio si corresponde
+      if (reversalMode === 'criterion') {
+        dataKeys.push('reversal_number');
+      }
+      
+      const csvHeader = [...metaKeys, ...dataKeys].join(',') + '\n';
       let csvContent = csvHeader;
       
       // ⭐ Determinar el número de reversión para cada trial en modo criterio
@@ -3135,6 +3187,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         }
       }
 
+      // ⭐ Generar filas del CSV con metadatos al principio de cada línea
       trials.forEach(t => {
         const { phase, trial_in_phase, is_reversal_first_trial } = computePhaseAndTrialInPhase(t.trial);
         const choiceNum = t.choice === 'A' ? 1 : (t.choice === 'B' ? 2 : 'NA');
@@ -3148,12 +3201,36 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // → Usar para análisis conductual (accuracy real)
         const actual_is_correct = t.omission === 1 ? 'NA' : (t.actual_is_correct !== undefined ? t.actual_is_correct : 'NA');
         
-        csvContent += `${participantId},${t.trial},${choiceNum},${reward},${actual_is_correct},${t.misleading},${t.reversal},${phase},${trial_in_phase},${is_reversal_first_trial},${t.is_perseverative},${t.is_regressive},${t.reactionTime},${t.omission},${probGood},${probBad},${icvGlobal},${icvLearn},${icvRev},${reversalMode}`;
+        // Construir línea con valores de metadatos + datos del trial
+        const metaValues = metaKeys.map(key => meta[key]);
+        const dataValues = [
+          participantId,
+          t.trial,
+          choiceNum,
+          reward,
+          actual_is_correct,
+          t.misleading,
+          t.reversal,
+          phase,
+          trial_in_phase,
+          is_reversal_first_trial,
+          t.is_perseverative,
+          t.is_regressive,
+          t.reactionTime,
+          t.omission,
+          probGood,
+          probBad,
+          icvGlobal,
+          icvLearn,
+          icvRev,
+          reversalMode
+        ];
         
         if (reversalMode === 'criterion') {
-          csvContent += `,${reversalNumberByTrial[t.trial] || 0}`;
+          dataValues.push(reversalNumberByTrial[t.trial] || 0);
         }
-        csvContent += '\n';
+        
+        csvContent += [...metaValues, ...dataValues].join(',') + '\n';
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
