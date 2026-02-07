@@ -42,7 +42,7 @@ En `logTrial`:
 trial: 31
 isReversalTrial: 1  (TRUE en este ensayo)
 reversalBlock: 1    (incrementado)
-reversalPhase: 0    (no aplicable en modo predeterminado)
+reversalPhase: 1    (TRUE a partir de ahora en ambos modos)
 is_regressive: 0    (no puede ser regresivo en el ensayo de reversión)
 ```
 
@@ -121,7 +121,7 @@ meta_window_focus_changes: 3  (participante perdió foco 3 veces)
 ```
 is_reversal_trial: 0 | 1      (antes: reversal)
 reversal_block: 0, 1, 2...    (antes: phase)
-is_reversal_phase: 0 | 1      (nueva)
+is_reversal_phase: 0 | 1      (nueva, ambos modos)
 is_regressive_error: 0 | 1    (antes: is_regressive)
 ```
 
@@ -135,6 +135,7 @@ Para validar manualmente:
 5. Verificar:
    - Columna `reversalBlock`: debe ser 0 en ensayos 1-30, 1 en ensayos 31-60
    - Columna `is_reversal_trial`: debe ser 1 solo en ensayo 31
+   - Columna `is_reversal_phase`: debe ser 0 en ensayos 1-30, 1 en ensayos 31-60
    - Columna `is_regressive_error`: debe ser 1 solo en ensayos donde:
      - `actual_is_correct = 0` Y
      - Ya había acertado al menos una vez en el `reversalBlock` actual

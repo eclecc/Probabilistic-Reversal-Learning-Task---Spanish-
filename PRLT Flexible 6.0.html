@@ -1739,7 +1739,7 @@
     // --- Variables de Reversión (Sistema Refactorizado) ---
     let reversalBlock = 0;                  // Bloque de aprendizaje actual (incrementa con cada reversión)
     let isReversalTrial = false;            // TRUE solo en el ensayo exacto de reversión
-    let reversalPhase = false;              // TRUE a partir de la primera reversión (solo modo criterion)
+    let reversalPhase = false;              // TRUE a partir de la primera reversión (ambos modos)
     let isReversalPhase = false;            // Flag legacy de fase de reversión (mantener compatibilidad)
     let reversalTrial;                      // Ensayo de reversión en modo predetermined
     let reversalMode = 'predetermined';     // Modo de reversión: 'predetermined' o 'criterion'
@@ -2386,18 +2386,11 @@ function endPracticeBlock() {
     // (excluye el ensayo de reversión mismo)
     if (prevCorrectStimulus !== null && isReversalPhase && !_isReversalTrial && choice === prevCorrectStimulus) {
       is_perseverative = 1;
-      
-      // Error Regresivo: error perseverativo DESPUÉS de haber acertado al menos
-      // una vez en el bloque actual (reversalBlock actual)
-      if (hasMadeCorrectInThisPhase) {
-        is_regressive = 1;
-      }
     }
     
-    // LÓGICA ALTERNATIVA PARA ERROR REGRESIVO:
-    // Un error es regresivo si el participante elige incorrectamente (actual_is_correct === 0)
-    // pero ya había aprendido la respuesta correcta actual en este reversalBlock
-    // (la había elegido correctamente al menos una vez)
+    // Error Regresivo: un error (actual_is_correct === 0) después de haber
+    // demostrado aprendizaje de la contingencia correcta actual
+    // (haberla elegido correctamente al menos una vez en el reversalBlock actual)
     if (actual_is_correct === 0 && correctChoicesInBlock.size > 0) {
       is_regressive = 1;
     }
@@ -2430,7 +2423,7 @@ function endPracticeBlock() {
       // NUEVOS CAMPOS para sistema refactorizado
       reversalBlock: reversalBlock,           // Bloque de aprendizaje actual
       isReversalTrial: _isReversalTrial,      // TRUE solo en el ensayo de reversión
-      reversalPhase: reversalPhase ? 1 : 0    // TRUE a partir de primera reversión (modo criterion)
+      reversalPhase: reversalPhase ? 1 : 0    // TRUE a partir de primera reversión (ambos modos)
     });
     
     // Actualizar hasMadeCorrectInThisPhase usando la verdad empírica
@@ -2539,7 +2532,7 @@ function endPracticeBlock() {
             currentReversalTrials = 0;
             criterionReached = false;
             
-            // La primera reversión marca el inicio de reversalPhase (solo modo criterion)
+            // La primera reversión marca el inicio de reversalPhase (en modo criterion)
             if (!reversalPhase) {
               reversalPhase = true;
             }
@@ -2563,9 +2556,13 @@ function endPracticeBlock() {
           // Limpiar registro de elecciones correctas del bloque anterior
           correctChoicesInBlock.clear();
           
-          // Marcar fase de reversión (legacy)
+          // Marcar fase de reversión (ambos modos)
           if (!isReversalPhase) {
             isReversalPhase = true;
+          }
+          // En modo predeterminado, también marcar reversalPhase para consistencia
+          if (reversalMode === 'predetermined' && !reversalPhase) {
+            reversalPhase = true;
           }
           
           console.log(`🔄 Reversión en trial ${currentTrialNumber} | Bloque: ${reversalBlock} ${reversalMode === 'criterion' ? `| Rev#${reversalCount}` : ''}`);
@@ -3270,7 +3267,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       
       // ⭐ Definir metadatos de trazabilidad (AMPLIADOS)
       const meta = {
-        meta_task_version: "PRLT_flexible_6.0_refactored",
+        meta_task_version: "PRLT_Flexible_6.0_Refactored",
         meta_export_datetime_iso: new Date().toISOString(),
         meta_timezone_offset_min: new Date().getTimezoneOffset(),
         meta_user_agent: navigator.userAgent,
@@ -3304,7 +3301,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         'misleading', 
         'is_reversal_trial',        // RENOMBRADO desde 'reversal'
         'reversal_block',            // RENOMBRADO desde 'phase'
-        'is_reversal_phase',         // NUEVO: TRUE a partir de primera reversión (modo criterion)
+        'is_reversal_phase',         // NUEVO: TRUE a partir de primera reversión (ambos modos)
         'trial_in_phase',            // LEGACY: mantener por compatibilidad
         'is_reversal_first_trial',   // LEGACY: mantener por compatibilidad
         'is_perseverative', 

@@ -44,9 +44,9 @@ Se han implementado manejadores de eventos `window.addEventListener('blur')` y `
    - Permite identificar con precisión el ensayo de cambio de contingencias
 
 3. **`reversalPhase`** (booleano):
-   - Se vuelve `true` a partir de la primera reversión en modo `criterion`
+   - Se vuelve `true` a partir de la primera reversión **en ambos modos** (predetermined y criterion)
    - Permanece `true` durante el resto de la tarea
-   - Diferente de `isReversalPhase` (legacy) que se usa en ambos modos
+   - Diferente de `isReversalPhase` (legacy) que se usa internamente
 
 4. **`correctChoicesInBlock`** (Set):
    - Set que almacena los números de ensayo donde el participante eligió correctamente
@@ -87,7 +87,7 @@ Esta lógica asegura que:
 - **`is_regressive`** → **`is_regressive_error`**: Clarifica que es un tipo de error
 
 #### Nueva Columna Añadida:
-- **`is_reversal_phase`**: Indica si el ensayo ocurre en fase de reversión (relevante para modo `criterion`)
+- **`is_reversal_phase`**: Indica si el ensayo ocurre en fase de reversión (ambos modos: predetermined y criterion)
 
 #### Estructura de Datos en trials[]:
 Cada objeto de ensayo ahora incluye:
@@ -127,6 +127,7 @@ Cada objeto de ensayo ahora incluye:
 | Metadatos CSV | 16 campos | 19 campos (+3 para auditoría) |
 | Nombres de columnas | `phase`, `reversal`, `is_regressive` | `reversal_block`, `is_reversal_trial`, `is_regressive_error` |
 | Rastreo de atención | No | Sí (`windowFocusChanges`) |
+| Versión | PRLT_flexible_5.2_study | PRLT_Flexible_6.0_Refactored |
 
 ### Impacto en Análisis
 
