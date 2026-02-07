@@ -3151,7 +3151,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         meta_prob_good: probGood,
         meta_prob_bad: probBad,
         meta_feedback_duration_ms: currentFeedbackDuration,
-        meta_response_deadline_ms: currentResponseDeadline !== null ? currentResponseDeadline : 'null',
+        meta_response_deadline_ms: currentResponseDeadline !== null ? currentResponseDeadline : 'NA',
         meta_n_trials_planned: trials.length
       };
 
@@ -3164,7 +3164,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         dataKeys.push('reversal_number');
       }
       
-      const csvHeader = [...metaKeys, ...dataKeys].join(',') + '\n';
+      const csvHeader = [...metaKeys, ...dataKeys].map(csvEscape).join(',') + '\n';
       let csvContent = csvHeader;
       
       // ⭐ Determinar el número de reversión para cada trial en modo criterio
@@ -3230,7 +3230,8 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           dataValues.push(reversalNumberByTrial[t.trial] || 0);
         }
         
-        csvContent += [...metaValues, ...dataValues].join(',') + '\n';
+        // ⭐ Aplicar csvEscape a todos los valores para garantizar formato CSV correcto
+        csvContent += [...metaValues, ...dataValues].map(csvEscape).join(',') + '\n';
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
