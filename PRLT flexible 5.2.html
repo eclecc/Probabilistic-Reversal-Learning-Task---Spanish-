@@ -3043,12 +3043,23 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         
         <br>
 
+        <!-- SECCIÓN DE EXPORTACIONES -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 30px;">
+          <h3 style="margin: 0 0 15px 0;">💾 Exportar Datos</h3>
+          <button id="downloadCsvBtn" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border); background: var(--primary); color: white; cursor: pointer; font-size: 16px; font-weight: 500; margin-right: 10px;">Descargar CSV (.csv)</button>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">CSV completo con metadatos de trazabilidad, compatible con análisis en Python/R.</p>
+        </div>
+
+        <!-- INFORMACIÓN COMPUTACIONAL (INFORMATIVA) -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px;">
+          <h4 style="margin: 0 0 10px 0; color: var(--text-secondary);">ℹ️ Información Computacional</h4>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Esta sección contiene información sobre los modelos computacionales ajustados.</p>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Los resultados computacionales mostrados arriba son aproximaciones basadas en MLE individual.</p>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Para análisis jerárquicos más robustos, utiliza el CSV exportado con hBayesDM (R) o scripts Python personalizados.</p>
+        </div>
 
       <br>
     
-        
-        <button id="downloadCsv">Descargar CSV (.csv)</button>
-        <p style="font-size:12px;color: var(--text-muted);">CSV compatible con análisis en Python/R.</p>
       `;
 
   
@@ -3059,7 +3070,8 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       resultsDiv.dataset.probGood  = probGood.toFixed(3);
       resultsDiv.dataset.probBad   = probBad.toFixed(3);
 
-      document.getElementById('downloadCsv').addEventListener('click', downloadCsv);
+      // Asignar eventos onclick a los botones dentro de showResults
+      document.getElementById('downloadCsvBtn').addEventListener('click', downloadCsv);
 
 
       // 🔔 Importantísimo: llama al VKF **después** de pintar resultsDiv
