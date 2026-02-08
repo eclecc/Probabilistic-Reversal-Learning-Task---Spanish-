@@ -1500,16 +1500,19 @@
 
 
     
-    // === RESTO DEL CÓDIGO JAVASCRIPT COMPLETO ===
-    const stimuliDiv = document.getElementById('stimuli');
-    const startBtn = document.getElementById('start-btn');
-    
-    const feedbackDiv = document.getElementById('feedback');
-    const resultsDiv = document.getElementById('results');
-    const instructions = document.getElementById('instructions');
-    const probScheduleSelect = document.getElementById('probScheduleSelect');
-    const feedbackDurationSelect = document.getElementById('feedbackDurationSelect');
-    const fixationCross = document.getElementById('fixation-cross');
+// ========================================================================
+// SECCIÓN 4: SELECTORES DE ELEMENTOS DEL DOM
+// ========================================================================
+// Referencias a elementos HTML que se manipulan durante la tarea.
+
+    const stimuliDiv = document.getElementById('stimuli');           // Contenedor de estímulos (genios/lago)
+    const startBtn = document.getElementById('start-btn');           // Botón de inicio de tarea
+    const feedbackDiv = document.getElementById('feedback');         // Div de feedback (+5€ / -5€)
+    const resultsDiv = document.getElementById('results');           // Div de resultados finales
+    const instructions = document.getElementById('instructions');    // Div de instrucciones
+    const probScheduleSelect = document.getElementById('probScheduleSelect');             // Selector de probabilidad
+    const feedbackDurationSelect = document.getElementById('feedbackDurationSelect');     // Selector de duración de feedback
+    const fixationCross = document.getElementById('fixation-cross'); // Cruz de fijación
 
 
 
@@ -1518,9 +1521,12 @@
     // Generar preview según el selector (inicialización)
     updateInstructionsBasedOnStimulus();
 
-    // ========================================
-    // SISTEMA DE PRÁCTICA INTERACTIVO (PREVIEW)
-    // ========================================
+// ========================================================================
+// SECCIÓN 5: SISTEMA DE PRÁCTICA INTERACTIVO (PREVIEW)
+// ========================================================================
+// Sistema de demostración interactiva que permite al participante
+// familiarizarse con la tarea antes de comenzar los ensayos reales.
+
     (function() {
       const previewMachines = document.getElementById('preview-machines');
       const previewFeedback = document.getElementById('preview-feedback');
@@ -1710,63 +1716,112 @@
       }
     })();
 
-// Estado y parámetros (CÓDIGO COMPLETO ORIGINAL)
-    let coins = 0;
-    let correctStimulus = null;
-    let trials = [];
-    let omissions = 0;
-    let trialStartTime;
-    let maxTrials;
-    let reversalTrial;
-    let isReversalPhase = false;
+// ========================================================================
+// SECCIÓN 1: VARIABLES GLOBALES Y CONSTANTES
+// ========================================================================
+// Esta sección contiene todas las variables de estado de la tarea y 
+// constantes de configuración que controlan el comportamiento del experimento.
 
-    let prevCorrectStimulus = null;
-    let hasMadeCorrectInThisPhase = false;
-
-    let STIMULUS_TIMEOUT_MS = 6000; // se actualiza al iniciar según el selector
-    let FEEDBACK_MS = 750;
-    const SELECTION_ANIMATION_MS = 200;
-    const FIXATION_MIN_MS = 500;
-    const FIXATION_MAX_MS = 1000;
+    // --- Variables de Progreso y Puntuación ---
+    let coins = 0;                          // Puntos acumulados del participante
+    let trialCount = 0;                     // Contador de ensayos completados (0 a maxTrials-1)
+    let maxTrials;                          // Número total de ensayos planificados
+    let omissions = 0;                      // Contador de ensayos sin respuesta
     
-    let feedbackProbability = 0.7;
-    let trialCount = 0;
-    let performanceWindow = [];
-    let windowSize;
-    let accuracyThreshold;
-    let firstLearningTrial = null;
-    let reversalLearningTrial = null;
-    let responseBlocked = true;
-    let stimulusTimeoutId = null;
-
-    // === VARIABLES PARA BLOQUE DE PRÁCTICA ===
-    let isPracticeMode = true;
-    let practiceTrialCount = 0;
-    const MAX_PRACTICE_TRIALS = 10;
-    let practiceCorrectStimulus = 'A'; // Primera práctica siempre A
-    let practiceSequence = []; // Secuencia predeterminada de feedback para práctica
-    let practiceInstruction = '';
-    let practiceVerificationActive = false;
-
-
-    // ⭐ URNAS DE FEEDBACK (sistema determinístico por estímulo correcto/incorrecto)
-    // Ahora mantenemos urnas separadas para elecciones correctas e incorrectas
-    let feedbackUrnLearningCorrect = [];
-    let feedbackUrnLearningIncorrect = [];
+    // --- Variables de Estímulos y Respuestas ---
+    let correctStimulus = null;             // Estímulo correcto actual ('A' o 'B')
+    let prevCorrectStimulus = null;         // Estímulo correcto previo (antes de reversión)
+    let trials = [];                        // Array maestro con datos de todos los ensayos
+    let trialStartTime;                     // Timestamp del inicio del ensayo actual
+    let responseBlocked = true;             // Flag para bloquear respuestas durante transiciones
+    let stimulusTimeoutId = null;           // ID del temporizador de deadline de respuesta
     
-    // ⭐ VARIABLES PARA MODO CRITERIO
-    let reversalMode = 'predetermined'; // 'predetermined' o 'criterion'
-    let reversalCount = 0; // Contador de reversiones en modo criterio
-    let reversalData = []; // Array para almacenar datos de cada reversión en modo criterio
-    let currentReversalErrors = 0; // Errores en la reversión actual
-    let currentReversalTrials = 0; // Trials desde la última reversión
-    let criterionReached = false; // Si se alcanzó el criterio en la reversión actual
-    let feedbackUrnReversalCorrect = [];
-    let feedbackUrnReversalIncorrect = [];
-    let isFirstReversalTrial = false;
+    // --- Variables de Reversión (Sistema Refactorizado) ---
+    let reversalBlock = 0;                  // Bloque de aprendizaje actual (incrementa con cada reversión)
+    let isReversalTrial = false;            // TRUE solo en el ensayo exacto de reversión
+    let reversalPhase = false;              // TRUE a partir de la primera reversión (ambos modos)
+    let isReversalPhase = false;            // Flag legacy de fase de reversión (mantener compatibilidad)
+    let reversalTrial;                      // Ensayo de reversión en modo predetermined
+    let reversalMode = 'predetermined';     // Modo de reversión: 'predetermined' o 'criterion'
+    
+    // --- Registro de Elecciones Correctas por Bloque ---
+    // Necesario para calcular errores regresivos
+    let correctChoicesInBlock = new Set();  // Set de ensayos donde hubo elección correcta en el bloque actual
+    
+    // --- Variables de Aprendizaje y Criterio ---
+    let hasMadeCorrectInThisPhase = false;  // Si se ha acertado al menos una vez en la fase actual
+    let performanceWindow = [];             // Ventana deslizante de aciertos recientes
+    let windowSize;                         // Tamaño de ventana para criterio (ej: 10 ensayos)
+    let accuracyThreshold;                  // Umbral de aciertos para criterio (ej: 8/10)
+    let firstLearningTrial = null;          // Ensayo donde se alcanzó criterio inicial
+    let reversalLearningTrial = null;       // Ensayo donde se alcanzó criterio en reversión
+    let criterionReached = false;           // Si se alcanzó el criterio en la fase actual
 
+    // --- Variables de Modo Criterio ---
+    let reversalCount = 0;                  // Contador de reversiones en modo criterio
+    let reversalData = [];                  // Array con datos de cada reversión en modo criterio
+    let currentReversalErrors = 0;          // Errores en la reversión actual
+    let currentReversalTrials = 0;          // Ensayos desde la última reversión
+    let isFirstReversalTrial = false;       // Flag legacy (deprecado, usar isReversalTrial)
+    
+    // --- Constantes de Temporización (ms) ---
+    let STIMULUS_TIMEOUT_MS = 6000;         // Deadline de respuesta (se actualiza según selector)
+    let FEEDBACK_MS = 750;                  // Duración del feedback (se actualiza según selector)
+    const SELECTION_ANIMATION_MS = 200;     // Duración de animación de selección
+    const FIXATION_MIN_MS = 500;            // Duración mínima de cruz de fijación
+    const FIXATION_MAX_MS = 1000;           // Duración máxima de cruz de fijación
+    
+    // --- Variables de Probabilidad de Feedback ---
+    let feedbackProbability = 0.7;          // Probabilidad de feedback veraz (70% por defecto)
+    
+    // --- Variables para Bloque de Práctica ---
+    let isPracticeMode = true;              // Flag de modo práctica
+    let practiceTrialCount = 0;             // Contador de ensayos de práctica
+    const MAX_PRACTICE_TRIALS = 10;         // Número de ensayos de práctica
+    let practiceCorrectStimulus = 'A';      // Primera práctica siempre A
+    let practiceSequence = [];              // Secuencia predeterminada de feedback para práctica
+    let practiceInstruction = '';           // Instrucción actual mostrada en práctica
+    let practiceVerificationActive = false; // Si está activa verificación en práctica
 
-    //INICIO FUNCIÓN DE URNA - BALANCEADA POR ESTÍMULO (CORRECTO/INCORRECTO)
+    // --- Urnas de Feedback (Sistema Determinístico Balanceado) ---
+    // Se mantienen urnas separadas para elecciones correctas e incorrectas
+    // para asegurar proporciones exactas de feedback veraz/engañoso
+    let feedbackUrnLearningCorrect = [];    // Urna para respuestas correctas en fase inicial
+    let feedbackUrnLearningIncorrect = [];  // Urna para respuestas incorrectas en fase inicial
+    let feedbackUrnReversalCorrect = [];    // Urna para respuestas correctas en fase reversión
+    let feedbackUrnReversalIncorrect = [];  // Urna para respuestas incorrectas en fase reversión
+    
+    // --- Variable de Auditoría: Cambios de Foco de Ventana ---
+    let windowFocusChanges = 0;             // Contador de veces que el usuario sale/vuelve a la ventana
+
+// ========================================================================
+// SECCIÓN 2: MANEJADORES DE EVENTOS DE VENTANA (Auditoría)
+// ========================================================================
+// Rastrear cuántas veces el participante cambia el foco de la ventana
+// (minimiza, cambia de pestaña, etc.) durante la tarea para control de calidad.
+
+    /**
+     * Manejador de evento blur: se dispara cuando la ventana pierde el foco.
+     * Incrementa el contador de cambios de foco para auditoría.
+     */
+    window.addEventListener('blur', function() {
+      windowFocusChanges++;
+      console.log(`⚠️ Ventana perdió foco (cambio #${windowFocusChanges})`);
+    });
+
+    /**
+     * Manejador de evento focus: se dispara cuando la ventana recupera el foco.
+     * Se registra pero no incrementa contador (ya se contó en blur).
+     */
+    window.addEventListener('focus', function() {
+      console.log(`✅ Ventana recuperó foco (total cambios: ${windowFocusChanges})`);
+    });
+
+// ========================================================================
+// SECCIÓN 3: FUNCIONES DE GENERACIÓN DE URNAS DE FEEDBACK
+// ========================================================================
+// Sistema determinístico para asegurar proporciones exactas de feedback
+// veraz vs. engañoso, manteniendo urnas separadas por corrección de respuesta.
        /**
         * Crea una urna con feedback balanceado.
         * @param {number} size - Tamaño máximo estimado de la urna (usaremos ventanas más pequeñas)
@@ -2037,7 +2092,17 @@ function endPracticeBlock() {
 
 
     //INICIAR TAREA
+    
+// ========================================================================
+// SECCIÓN 6: LÓGICA PRINCIPAL DE LA TAREA
+// ========================================================================
+// Funciones que controlan el flujo principal de la tarea: inicio, 
+// presentación de estímulos, procesamiento de respuestas y reversiones.
 
+    /**
+     * Inicia la tarea principal tras completar la práctica.
+     * Genera los estímulos reales según la configuración y muestra la primera cruz de fijación.
+     */
     function startMainTask() {
       isPracticeMode = false;
       practiceTrialCount = 0;
@@ -2299,31 +2364,47 @@ function endPracticeBlock() {
 
       
       
-     // --- BLOQUE A SUSTITUIR dentro de logTrial(...) ---
-    const isTruthActuallyCorrect = (choice === trueCorrectSide) ? 1 : 0;
+     // --- BLOQUE REFACTORIZADO: Nueva lógica de registro de ensayo ---
     const currentTrialNumber = trials.length + 1;
-    // Usar la variable isFirstReversalTrial que se establece en processChoice
-    const _isFirstTrialOfReversal = isFirstReversalTrial ? 1 : 0;
     
-    // Si es el trial que inicia la reversión, lo marcamos pero NO lo contamos como error.
-    // counted_is_correct es lo que se usa para performanceWindow / conteos.
-    // actual_is_correct es la verdad empírica para auditoría y cálculo de hasMadeCorrectInThisPhase.
-    const actual_is_correct = isTruthActuallyCorrect;
-    const counted_is_correct = _isFirstTrialOfReversal ? 1 : actual_is_correct;
-      
+    // Corrección objetiva de la elección
+    const actual_is_correct = (choice === trueCorrectSide) ? 1 : 0;
+    
+    // Usar isReversalTrial que fue establecido en processChoice
+    const _isReversalTrial = isReversalTrial ? 1 : 0;
+    
+    // Si es el ensayo de reversión, lo marcamos pero NO lo contamos como error
+    // counted_is_correct se usa para performanceWindow / conteos
+    const counted_is_correct = _isReversalTrial ? 1 : actual_is_correct;
+    
+    // ========================================================================
+    // CÁLCULO DE ERRORES PERSEVERATIVOS Y REGRESIVOS (LÓGICA CORREGIDA)
+    // ========================================================================
     let is_perseverative = 0, is_regressive = 0;
-    // 3.1 Perseverativo = elegir el lado anteriormente correcto (excluye el trial de reversión).
-    // 3.3 Regresivo = lo mismo, pero tras haber acertado al menos una vez en esta fase.
-    if (prevCorrectStimulus !== null && isReversalPhase && !_isFirstTrialOfReversal && choice === prevCorrectStimulus) {
-      is_perseverative = 1;                     // siempre que elija el lado previamente correcto
-      if (hasMadeCorrectInThisPhase) is_regressive = 1;   // además marcar como regresivo si ya hubo algún acierto en reversión
+    
+    // Error Perseverativo: elegir el lado anteriormente correcto tras reversión
+    // (excluye el ensayo de reversión mismo)
+    if (prevCorrectStimulus !== null && isReversalPhase && !_isReversalTrial && choice === prevCorrectStimulus) {
+      is_perseverative = 1;
+    }
+    
+    // Error Regresivo: un error (actual_is_correct === 0) después de haber
+    // demostrado aprendizaje de la contingencia correcta actual
+    // (haberla elegido correctamente al menos una vez en el reversalBlock actual)
+    if (actual_is_correct === 0 && correctChoicesInBlock.size > 0) {
+      is_regressive = 1;
+    }
+    
+    // Si la elección fue correcta, registrarla en el set del bloque actual
+    if (actual_is_correct === 1) {
+      correctChoicesInBlock.add(currentTrialNumber);
     }
 
-    
-    // misleading: calcular respecto de la verdad empírica (actual), no respecto del counted_is_correct.
+    // Calcular misleading respecto de la verdad empírica
     const misleading = ((feedbackCorrect ? 1 : 0) !== actual_is_correct) ? 1 : 0;
     
     // Push del trial incluyendo campos para auditoría
+    // Incluir reversalBlock e isReversalTrial para las nuevas columnas CSV
     trials.push({
       trial: currentTrialNumber,
       is_perseverative,
@@ -2336,9 +2417,13 @@ function endPracticeBlock() {
       reversal: isReversalPhase ? 1 : 0,
       omission: 0,
       // Campos añadidos para trazabilidad/CSV
-      is_reversal_initiation: _isFirstTrialOfReversal ? 1 : 0,
+      is_reversal_initiation: _isReversalTrial ? 1 : 0,
       actual_is_correct,
-      counted_is_correct
+      counted_is_correct,
+      // NUEVOS CAMPOS para sistema refactorizado
+      reversalBlock: reversalBlock,           // Bloque de aprendizaje actual
+      isReversalTrial: _isReversalTrial,      // TRUE solo en el ensayo de reversión
+      reversalPhase: reversalPhase ? 1 : 0    // TRUE a partir de primera reversión (ambos modos)
     });
     
     // Actualizar hasMadeCorrectInThisPhase usando la verdad empírica
@@ -2352,9 +2437,9 @@ function endPracticeBlock() {
       }
     }
     
-    // Actualizar performanceWindow usando counted_is_correct (de modo que la trial de reversión
+    // Actualizar performanceWindow usando counted_is_correct (de modo que el ensayo de reversión
     // no penalice la ventana)
-    if (!_isFirstTrialOfReversal) {
+    if (!_isReversalTrial) {
       performanceWindow.push(counted_is_correct);
       if (performanceWindow.length > windowSize) performanceWindow.shift();
     } else {
@@ -2378,8 +2463,8 @@ function endPracticeBlock() {
       }
     }
     
-    // ⭐ Resetear flag de primer trial de reversión después de procesarlo
-    if (_isFirstTrialOfReversal) {
+    // ⭐ Resetear flag legacy de primer trial de reversión después de procesarlo
+    if (_isReversalTrial) {
       isFirstReversalTrial = false;
     }
     // --- FIN BLOQUE ---
@@ -2392,6 +2477,11 @@ function endPracticeBlock() {
       }
     }
 
+    /**
+     * Procesa la elección del participante en un ensayo.
+     * Maneja la lógica de reversión, feedback y actualización de contadores.
+     * @param {string} choice - La opción elegida ('A' o 'B')
+     */
     function processChoice(choice) {
       if (responseBlocked) return;
       
@@ -2405,19 +2495,27 @@ function endPracticeBlock() {
 
         const currentTrialNumber = trialCount + 1;
         
-        // ⭐ LÓGICA DE REVERSIÓN
+        // ========================================================================
+        // NUEVA LÓGICA DE REVERSIÓN REFACTORIZADA
+        // ========================================================================
+        // Determinar si este ensayo es un ensayo de reversión (isReversalTrial)
+        // y ejecutar la reversión incrementando reversalBlock
+        
         let shouldReverse = false;
+        isReversalTrial = false;  // Resetear al inicio de cada ensayo
         
         if (reversalMode === 'predetermined') {
           // Modo predeterminado: reversión en trial fijo
           if (currentTrialNumber === reversalTrial && !isReversalPhase) {
             shouldReverse = true;
+            isReversalTrial = true;
           }
         } else if (reversalMode === 'criterion') {
           // Modo criterio: reversión cuando se alcanza el criterio
           // Solo revertir si se ha alcanzado el criterio de aprendizaje inicial o si ya estamos en fase de reversión
           if (criterionReached && (firstLearningTrial !== null || isReversalPhase)) {
             shouldReverse = true;
+            isReversalTrial = true;
             
             // Guardar datos de la reversión anterior (si existe)
             if (reversalCount > 0) {
@@ -2434,27 +2532,42 @@ function endPracticeBlock() {
             currentReversalTrials = 0;
             criterionReached = false;
             
-            // La primera reversión marca el inicio de la fase de reversión
-            if (!isReversalPhase) {
-              isReversalPhase = true;
+            // La primera reversión marca el inicio de reversalPhase (en modo criterion)
+            if (!reversalPhase) {
+              reversalPhase = true;
             }
           }
         }
         
+        // Ejecutar la reversión si corresponde
         if (shouldReverse) {
+          // Incrementar el bloque de reversión
+          reversalBlock++;
+          
+          // Guardar estímulo previo y cambiar al nuevo
           prevCorrectStimulus = correctStimulus;
           correctStimulus = correctStimulus === 'A' ? 'B' : 'A';
-          isFirstReversalTrial = true; // ⭐ MARCAR PRIMER TRIAL DE REVERSIÓN
+          
+          // Resetear tracking de fase
+          isFirstReversalTrial = true; // Legacy flag para compatibilidad
           hasMadeCorrectInThisPhase = false;
           performanceWindow = [];
           
-          // ⭐ FIX: Ensure isReversalPhase is set for both predetermined and criterion modes
+          // Limpiar registro de elecciones correctas del bloque anterior
+          correctChoicesInBlock.clear();
+          
+          // Marcar fase de reversión (ambos modos)
           if (!isReversalPhase) {
             isReversalPhase = true;
           }
+          // En modo predeterminado, también marcar reversalPhase para consistencia
+          if (reversalMode === 'predetermined' && !reversalPhase) {
+            reversalPhase = true;
+          }
           
-          console.log(`🔄 Reversión ${reversalMode === 'criterion' ? reversalCount : ''} en trial ${currentTrialNumber}`);
+          console.log(`🔄 Reversión en trial ${currentTrialNumber} | Bloque: ${reversalBlock} ${reversalMode === 'criterion' ? `| Rev#${reversalCount}` : ''}`);
         }
+        // ========================================================================
 
         const rt = Date.now() - trialStartTime;
         const trueCorrect = (choice === correctStimulus);
@@ -2622,6 +2735,17 @@ function endPracticeBlock() {
       }
     }
 
+// ========================================================================
+// SECCIÓN 9: CÁLCULO DE RESULTADOS Y MÉTRICAS
+// ========================================================================
+// Funciones para analizar el desempeño del participante y calcular
+// métricas de aprendizaje, incluyendo modelado computacional.
+
+    /**
+     * Muestra los resultados finales tras completar todos los ensayos.
+     * Calcula métricas de accuracy, learning trials, errores perseverativos/regresivos,
+     * y ajusta modelos computacionales (Q-learning, VKF, CPD, HGF).
+     */
     function showResults() {
       document.getElementById('coins-container').style.display = "none";
       resultsDiv.style.display = 'block'; // ⭐ AÑADE ESTA LÍNEA AL INICIO
@@ -3135,9 +3259,15 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         currentResponseDeadline = STIMULUS_TIMEOUT_MS;
       }
 
-      // ⭐ Definir metadatos de trazabilidad
+      // ========================================================================
+      // SECCIÓN 8: FUNCIONES DE EXPORTACIÓN DE DATOS
+      // ========================================================================
+      // Sistema de exportación CSV con metadatos completos de auditoría
+      // y columnas refactorizadas según el nuevo sistema de reversión.
+      
+      // ⭐ Definir metadatos de trazabilidad (AMPLIADOS)
       const meta = {
-        meta_task_version: "PRLT_flexible_5.2_study",
+        meta_task_version: "PRLT_Flexible_6.0_Refactored",
         meta_export_datetime_iso: new Date().toISOString(),
         meta_timezone_offset_min: new Date().getTimezoneOffset(),
         meta_user_agent: navigator.userAgent,
@@ -3152,12 +3282,39 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         meta_prob_bad: probBad,
         meta_feedback_duration_ms: currentFeedbackDuration,
         meta_response_deadline_ms: currentResponseDeadline !== null ? currentResponseDeadline : 'NA',
-        meta_n_trials_planned: trials.length
+        meta_n_trials_planned: trials.length,
+        // ⭐ NUEVOS METADATOS PARA AUDITORÍA
+        meta_participant_id: participantId,
+        meta_reversal_schedule: reversalMode === 'predetermined' ? reversalTrial : 'criterion-based',
+        meta_window_focus_changes: windowFocusChanges
       };
 
       // ⭐ Construir cabecera del CSV combinando metadatos y columnas de datos
+      // COLUMNAS REFACTORIZADAS: phase→reversal_block, reversal→is_reversal_trial, +is_reversal_phase
       const metaKeys = Object.keys(meta);
-      const dataKeys = ['participant_id', 'trial', 'choice_code', 'reward', 'actual_is_correct', 'misleading', 'reversal', 'phase', 'trial_in_phase', 'is_reversal_first_trial', 'is_perseverative', 'is_regressive', 'rt', 'omission', 'prob_good', 'prob_bad', 'icv_global', 'icv_learn', 'icv_rev', 'reversal_mode'];
+      const dataKeys = [
+        'participant_id', 
+        'trial', 
+        'choice_code', 
+        'reward', 
+        'actual_is_correct', 
+        'misleading', 
+        'is_reversal_trial',        // RENOMBRADO desde 'reversal'
+        'reversal_block',            // RENOMBRADO desde 'phase'
+        'is_reversal_phase',         // NUEVO: TRUE a partir de primera reversión (ambos modos)
+        'trial_in_phase',            // LEGACY: mantener por compatibilidad
+        'is_reversal_first_trial',   // LEGACY: mantener por compatibilidad
+        'is_perseverative', 
+        'is_regressive_error',       // RENOMBRADO desde 'is_regressive' para claridad
+        'rt', 
+        'omission', 
+        'prob_good', 
+        'prob_bad', 
+        'icv_global', 
+        'icv_learn', 
+        'icv_rev', 
+        'reversal_mode'
+      ];
       
       // Añadir columnas de modo criterio si corresponde
       if (reversalMode === 'criterion') {
@@ -3189,7 +3346,8 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
 
       // ⭐ Generar filas del CSV con metadatos al principio de cada línea
       trials.forEach(t => {
-        const { phase, trial_in_phase, is_reversal_first_trial } = computePhaseAndTrialInPhase(t.trial);
+        // Usar helper legacy para calcular trial_in_phase (mantener compatibilidad)
+        const { phase: legacyPhase, trial_in_phase, is_reversal_first_trial } = computePhaseAndTrialInPhase(t.trial);
         const choiceNum = t.choice === 'A' ? 1 : (t.choice === 'B' ? 2 : 'NA');
         
         // reward (0/1) = feedback MOSTRADO al participante
@@ -3201,6 +3359,12 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // → Usar para análisis conductual (accuracy real)
         const actual_is_correct = t.omission === 1 ? 'NA' : (t.actual_is_correct !== undefined ? t.actual_is_correct : 'NA');
         
+        // Obtener valores del trial object (sistema refactorizado)
+        const reversalBlockValue = t.reversalBlock !== undefined ? t.reversalBlock : 0;
+        const isReversalTrialValue = t.isReversalTrial !== undefined ? t.isReversalTrial : 0;
+        const isReversalPhaseValue = t.reversalPhase !== undefined ? t.reversalPhase : 0;
+        const isRegressiveErrorValue = t.is_regressive !== undefined ? t.is_regressive : 0;
+        
         // Construir línea con valores de metadatos + datos del trial
         const metaValues = metaKeys.map(key => meta[key]);
         const dataValues = [
@@ -3210,12 +3374,13 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           reward,
           actual_is_correct,
           t.misleading,
-          t.reversal,
-          phase,
-          trial_in_phase,
-          is_reversal_first_trial,
+          isReversalTrialValue,      // NUEVA COLUMNA: is_reversal_trial
+          reversalBlockValue,         // NUEVA COLUMNA: reversal_block (antes 'phase')
+          isReversalPhaseValue,       // NUEVA COLUMNA: is_reversal_phase
+          trial_in_phase,             // LEGACY: mantener
+          is_reversal_first_trial,    // LEGACY: mantener
           t.is_perseverative,
-          t.is_regressive,
+          isRegressiveErrorValue,     // RENOMBRADA: is_regressive_error
           t.reactionTime,
           t.omission,
           probGood,
@@ -4452,6 +4617,13 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       currentReversalErrors = 0;
       currentReversalTrials = 0;
       criterionReached = false;
+      
+      // ⭐ RESET NUEVAS VARIABLES DEL SISTEMA REFACTORIZADO
+      reversalBlock = 0;              // Inicializar en bloque 0 (pre-reversión)
+      isReversalTrial = false;        // No es un ensayo de reversión al inicio
+      reversalPhase = false;          // No estamos en fase de reversión al inicio
+      correctChoicesInBlock = new Set();  // Limpiar registro de elecciones correctas
+      isFirstReversalTrial = false;   // Legacy flag
 
       // Comprobar si se debe ejecutar el bloque de práctica
       const shouldDoPractice = document.getElementById('practiceBlockSelect').value === 'yes';
