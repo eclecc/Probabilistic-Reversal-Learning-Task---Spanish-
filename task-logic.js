@@ -47,7 +47,11 @@ function generateDenOudenDeck(numTrials, probability) {
   }
   
   if (attempts >= maxAttempts) {
-    console.warn('⚠️ No se pudo generar una baraja válida den Ouden después de', maxAttempts, 'intentos. Usando última baraja generada.');
+    console.error('⚠️ No se pudo generar una baraja válida den Ouden después de', maxAttempts, 'intentos.');
+    // Para probabilidades extremas, el método den Ouden puede ser imposible.
+    // En este caso, retornamos la última baraja generada como fallback.
+    // Nota: Esto solo debería ocurrir con probabilidades muy altas (>75%) o muy bajas (<25%)
+    console.warn('⚠️ Usando última baraja generada como fallback. Considere usar el método de Urna Balanceada para esta configuración.');
   } else {
     console.log('✓ Baraja den Ouden generada en', attempts, 'intentos');
   }
@@ -120,6 +124,12 @@ function drawFromDenOudenDeck(trueCorrect) {
   }
   
   // Obtener el valor: giveTruthful indica si damos feedback coherente
+  if (!deck || deck.length === 0) {
+    console.error('Error: Baraja den Ouden vacía o no inicializada');
+    // Fallback: retornar feedback veraz
+    return trueCorrect;
+  }
+  
   const giveTruthful = deck[index];
   
   // giveTruthful=true y trueCorrect=true → feedback positivo
@@ -1310,6 +1320,10 @@ function drawFromDenOudenDeck(trueCorrect) {
       }
 
       // Variable global para almacenar el método de aleatorización seleccionado
+      // Valores válidos:
+      //   - 'urn': Método de urna balanceada (estándar) - asegura proporción correcta en ventanas
+      //   - 'denouden': Método de pseudoaleatorización den Ouden - sin rachas >3 consecutivas
+      // Se establece al inicio de la tarea desde el selector HTML 'randomizationMethodSelect'
       let randomizationMethod = 'urn'; // Por defecto: método de urna balanceada
 
       /**
