@@ -353,27 +353,6 @@
       right: 20%; /* ⭐ MÁQUINA B A LA DERECHA */
     }
     
-    /* ⭐ CONTADOR DEBAJO DEL ÁREA DE TAREA */
-    #coins-container {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px 20px;
-      margin: 10px auto 0 auto; /* ⭐ SEPARADO DEL ÁREA DE TAREA */
-      font-size: 0.8rem;
-      font-weight: 300;
-      display: none;
-      text-align: center;
-      max-width: 350px;
-      color: var(--text-muted);
-    }
-
-    #coins-count {
-      font-weight: 400;
-      margin: 0 4px;
-      font-size: 0.9rem;
-    }
-    
     /* Preview de estímulos elegante */
     .stimulus-preview { 
       background: var(--bg-elevated);
@@ -575,15 +554,6 @@
         min-height: 45px;
         max-width: 200px;
       }
-
-      #coins-container {
-        max-width: 320px;
-        font-size: 0.75rem;
-      }
-
-      #coins-count {
-        font-size: 0.8rem;
-      }
     }
   </style>
 </head>
@@ -672,13 +642,6 @@
             </select>
           </label>
           <label>
-            Mostrar contador de monedas
-            <select id="showCoinsCounterSelect">
-              <option value="no" selected>No</option>
-              <option value="yes">Sí</option>
-            </select>
-          </label>
-          <label>
             Bloque de práctica
             <select id="practiceBlockSelect">
               <option value="yes" >Sí</option>
@@ -720,13 +683,6 @@
         <div id="stimuli">
           <!-- Los estímulos se generarán dinámicamente aquí -->
         </div>
-      </div>
-
-      <!-- ⭐ CONTADOR DEBAJO DEL ÁREA COMPLETA -->
-      <div id="coins-container">
-        <span>Contador de monedas:</span>
-        <span id="coins-count">0</span>
-        <span id="coins-symbol">€</span>
       </div>
     </div>
 
@@ -2575,9 +2531,6 @@ function endPracticeBlock() {
         const feedbackCorrect = drawFromUrn(trueCorrect);
 
         coins += feedbackCorrect ? 5 : -5;
-        const coinsCountElem = document.getElementById('coins-count');
-        coinsCountElem.textContent = coins;
-        coinsCountElem.style.color = coins >= 0 ? "var(--success)" : "var(--error)";
 
         logTrial(choice, correctStimulus, feedbackCorrect, rt);
         showFeedback(feedbackCorrect);
@@ -2623,26 +2576,26 @@ function endPracticeBlock() {
       let phase = 0, trial_in_phase = trialNumber;
       let is_reversal_first_trial = 0;
       
-      // En modo criterio, usamos isReversalPhase en lugar de reversalTrial
-      if (reversalMode === 'criterion') {
-        // Buscar el trial actual en el array de trials para determinar su fase
-        const currentTrial = trials.find(t => t.trial === trialNumber);
-        if (currentTrial && currentTrial.reversal === 1) {
-          phase = 1;
-          // Calcular trial_in_phase contando trials previos en fase de reversión
-          const reversalTrialsBeforeCurrent = trials.filter(t => t.trial < trialNumber && t.reversal === 1).length;
-          trial_in_phase = reversalTrialsBeforeCurrent + 1;
-          if (currentTrial.is_reversal_initiation === 1) {
-            is_reversal_first_trial = 1;
-          }
-        }
-      } else {
-        // Modo predeterminado: usar reversalTrial fijo
-        if (reversalTrial !== null && trialNumber >= reversalTrial) {
-          phase = 1;
-          trial_in_phase = trialNumber - reversalTrial + 1;
-          if (trialNumber === reversalTrial) is_reversal_first_trial = 1;
-        }
+      // Buscar el trial actual en el array de trials
+      const currentTrial = trials.find(t => t.trial === trialNumber);
+      if (!currentTrial) {
+        return { phase, trial_in_phase, is_reversal_first_trial };
+      }
+      
+      // Usar el reversalBlock del trial para determinar la fase
+      const currentBlock = currentTrial.reversalBlock || 0;
+      phase = currentBlock > 0 ? 1 : 0;
+      
+      // Calcular trial_in_phase: contar trials en el mismo bloque antes de este
+      const trialsInSameBlock = trials.filter(t => 
+        t.reversalBlock === currentBlock && t.trial < trialNumber
+      ).length;
+      trial_in_phase = trialsInSameBlock + 1;
+      
+      // Marcar is_reversal_first_trial = 1 si es el primer trial del bloque actual
+      // (excepto para el bloque 0 que es el aprendizaje inicial)
+      if (currentBlock > 0 && trialsInSameBlock === 0) {
+        is_reversal_first_trial = 1;
       }
       
       return { phase, trial_in_phase, is_reversal_first_trial };
@@ -2747,7 +2700,6 @@ function endPracticeBlock() {
      * y ajusta modelos computacionales (Q-learning, VKF, CPD, HGF).
      */
     function showResults() {
-      document.getElementById('coins-container').style.display = "none";
       resultsDiv.style.display = 'block'; // ⭐ AÑADE ESTA LÍNEA AL INICIO
 
       const nTrials = trials.length;
@@ -3032,52 +2984,69 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
 
       // FINAL BLQOUE RESULTADOS COMP
 
-
+      // Calculate total score display
+      const total_score = coins;
+      const scoreColor = total_score >= 0 ? '#10b981' : '#ef4444';
+      const scoreSign = total_score >= 0 ? '+' : '';
       
       resultsDiv.innerHTML = `
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 18px;">
-          <h3 style="margin: 0 0 10px 0;">📋 Variables a reportar (copia y pega)</h3>
-          <textarea id="reportVariablesTextarea" readonly style="width: 100%; min-height: 140px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: #e5e7eb; font-size: 13px; line-height: 1.35;">${reportText}</textarea>
+        <!-- COMPLETION MESSAGE -->
+        <div style="text-align: center; margin-bottom: 30px;">
+          <h2 style="font-size: 2rem; margin-bottom: 10px;">Has finalizado la tarea</h2>
+          <div style="font-size: 2.5rem; font-weight: bold; color: ${scoreColor};">
+            ${scoreSign}${total_score}€ 💰
+          </div>
+        </div>
+
+        <!-- MAIN EXPORT SECTION -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; text-align: center;">
+          <h3 style="margin: 0 0 15px 0;">💾 Exportar Datos</h3>
+          <button id="downloadCsvBtn" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border); background: var(--primary); color: white; cursor: pointer; font-size: 16px; font-weight: 500;">⬇️ Descargar Resultados (CSV)</button>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">CSV completo con metadatos de trazabilidad, compatible con análisis en Python/R.</p>
+        </div>
+
+        <!-- COPY DATA FOR hBayesDM -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 30px;">
+          <h3 style="margin: 0 0 10px 0;">📋 Datos para hBayesDM (copia y pega)</h3>
+          <pre id="reportVariablesTextarea" readonly style="width: 100%; min-height: 140px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: #0b1220; color: #e5e7eb; font-size: 13px; line-height: 1.35; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${reportText}</pre>
           <div style="display:flex; gap:10px; margin-top: 10px;">
             <button type="button" onclick="copyReportVariables()" style="padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer;">Copiar</button>
             <span id="copyReportVariablesStatus" style="align-self:center; color: var(--text-muted); font-size: 0.9rem;"></span>
           </div>
         </div>
-        <h3>Resultados (Medidas Conductuales):</h3>
-        <p>Total de ensayos: ${nTrials} (${nValidTrials} válidos, ${omissions} omisiones)</p>
-        <p>Ganancia total:${coins}€</p>
-        <br>
-        <br>
-        <br>
-        <br>
-        <p><strong>Errores perseverativos totales (fase reversión)</strong>: ${perseverativeTotal}</p>
-        <p><strong>Errores perseverativos en rachas ≥2 (fase reversión)</strong>: ${perseverativeStreakTrials}</p>
-        <p><strong>Errores regresivos (fase reversión)</strong>: ${regressiveErrorsReversal}</p>
-        <p><strong>Cambios tras recompensa (desconfianza) %Win-Switch</strong>: ${winSwitchPct}</p>
-        <br>
-        <p>Trials hasta primer criterio:${trialsToFirstCriterion}</p>
-        <p>Trials hasta criterio en fase de reversión: ${trialsToReversalCriterion}</p>
-        ${criterionModeMetrics}
-        <br>
-        <p>Sensibilidad a refuerzo positivo — %Win-Stay: ${winStayPct}</p>
-        <p>Sensibilidad a refuerzo negativo— %Loss-Switch: ${loseShiftPct}</p>
-        <p>"Probabilistic switch rate" (% tras feedback engañoso): ${probabilisticSwitchRatePct}</p>
-        <br>
-        <p>ICV: Coeficiente de variabilidad de TR intrasujeto</p>
-        <p>Global: ${icvGlobal.toFixed(3)} — Fase de aprendizaje: ${icvLearn.toFixed(3)} — Fase de reversión: ${icvRev.toFixed(3)}</p>
-        <p style="font-size:14px;color: var(--text-muted);">Referencia: adulto sano 0,2–0,3; TDAH/TMS 0,3–0,4</p>
-        <br>
-        <br>
-        <h3>Resultados Modelos Computacionales:</h3>
-        <!-- Aproximación basada en MLE (alt. cálculo jerárquico con python con EMA y hbayesDM en R) -->
-        <br>
-        ${compHtml}
 
+        <!-- BEHAVIORAL ANALYSIS SECTION -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0;">📊 Análisis Conductual</h3>
+          <p>Total de ensayos: ${nTrials} (${nValidTrials} válidos, ${omissions} omisiones)</p>
+          <p>Ganancia total: ${coins}€</p>
+          <br>
+          <p><strong>Errores perseverativos totales (fase reversión)</strong>: ${perseverativeTotal}</p>
+          <p><strong>Errores perseverativos en rachas ≥2 (fase reversión)</strong>: ${perseverativeStreakTrials}</p>
+          <p><strong>Errores regresivos (fase reversión)</strong>: ${regressiveErrorsReversal}</p>
+          <p><strong>Cambios tras recompensa (desconfianza) %Win-Switch</strong>: ${winSwitchPct}</p>
+          <br>
+          <p>Trials hasta primer criterio: ${trialsToFirstCriterion}</p>
+          <p>Trials hasta criterio en fase de reversión: ${trialsToReversalCriterion}</p>
+          ${criterionModeMetrics}
+          <br>
+          <p>Sensibilidad a refuerzo positivo — %Win-Stay: ${winStayPct}</p>
+          <p>Sensibilidad a refuerzo negativo — %Loss-Switch: ${loseShiftPct}</p>
+          <p>"Probabilistic switch rate" (% tras feedback engañoso): ${probabilisticSwitchRatePct}</p>
+          <br>
+          <p>ICV: Coeficiente de variabilidad de TR intrasujeto</p>
+          <p>Global: ${icvGlobal.toFixed(3)} — Fase de aprendizaje: ${icvLearn.toFixed(3)} — Fase de reversión: ${icvRev.toFixed(3)}</p>
+          <p style="font-size:14px;color: var(--text-muted);">Referencia: adulto sano 0,2–0,3; TDAH/TMS 0,3–0,4</p>
+        </div>
 
-        
-        <br>
-        <p style="font-size:14px;color: var(--text-muted);">Referencias: Den Ouden 2013; Waltmann 2022.</p>
-        <br>
+        <!-- COMPUTATIONAL ANALYSIS SECTION -->
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+          <h3 style="margin-top: 0;">🧮 Análisis Computacional</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">Aproximación basada en MLE (alt. cálculo jerárquico con Python/EMA y hBayesDM en R)</p>
+          ${compHtml}
+          <br>
+          <p style="font-size:14px;color: var(--text-muted);">Referencias: Den Ouden 2013; Waltmann 2022.</p>
+        </div>
 
         <!-- REFERENCIA NORMATIVA -->
         <div style="background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:30px;font-family:monospace;font-size:12px;line-height:1.8;">
@@ -3163,27 +3132,6 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           
         </div>
         <!-- FIN REFERENCIA NORMATIVA -->
-
-        
-        <br>
-
-        <!-- SECCIÓN DE EXPORTACIONES -->
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 30px;">
-          <h3 style="margin: 0 0 15px 0;">💾 Exportar Datos</h3>
-          <button id="downloadCsvBtn" style="padding: 12px 24px; border-radius: 10px; border: 1px solid var(--border); background: var(--primary); color: white; cursor: pointer; font-size: 16px; font-weight: 500; margin-right: 10px;">Descargar CSV (.csv)</button>
-          <p style="font-size: 12px; color: var(--text-muted); margin-top: 10px;">CSV completo con metadatos de trazabilidad, compatible con análisis en Python/R.</p>
-        </div>
-
-        <!-- INFORMACIÓN COMPUTACIONAL (INFORMATIVA) -->
-        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-top: 20px;">
-          <h4 style="margin: 0 0 10px 0; color: var(--text-secondary);">ℹ️ Información Computacional</h4>
-          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Esta sección contiene información sobre los modelos computacionales ajustados.</p>
-          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Los resultados computacionales mostrados arriba son aproximaciones basadas en MLE individual.</p>
-          <p style="font-size: 12px; color: var(--text-muted); margin: 5px 0;">Para análisis jerárquicos más robustos, utiliza el CSV exportado con hBayesDM (R) o scripts Python personalizados.</p>
-        </div>
-
-      <br>
-    
       `;
 
   
@@ -3196,15 +3144,6 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
 
       // Asignar eventos onclick a los botones dentro de showResults
       document.getElementById('downloadCsvBtn').addEventListener('click', downloadCsv);
-
-
-      // 🔔 Importantísimo: llama al VKF **después** de pintar resultsDiv
-        if (typeof window.__vkfFitAndRender__ === 'function') {
-          try { window.__vkfFitAndRender__(); }
-          catch (e) { console.error('[VKF] render falló:', e); }
-        }
-
-      
     }
 
 
@@ -3216,7 +3155,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
     // COLUMNAS CLAVE:
     // - choice_code (1/2): opción elegida (1=A, 2=B)
     // - reward (0/1): feedback MOSTRADO al participante (puede ser engañoso)
-    //   → Usar para modelos RL (Q-learning, VKF, CPD, HGF)
+    //   → Usar para modelos RL (Q-learning, CPD, HGF)
     // - actual_is_correct (0/1): corrección OBJETIVA de la elección
     //   → Usar para análisis conductual (accuracy, learning curves)
     // - misleading (0/1): 1 si el feedback fue engañoso (reward ≠ actual_is_correct)
@@ -3265,6 +3204,66 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       // Sistema de exportación CSV con metadatos completos de auditoría
       // y columnas refactorizadas según el nuevo sistema de reversión.
       
+      // ⭐ CALCULAR PROBABILIDADES REALES PARA DEBUG
+      // Calcular las probabilidades de recompensa que experimentó el participante
+      // para cada estímulo en cada fase
+      const debugProbs = {
+        stimA_phase0_rewards: 0, stimA_phase0_total: 0,
+        stimB_phase0_rewards: 0, stimB_phase0_total: 0,
+        stimA_phase1_rewards: 0, stimA_phase1_total: 0,
+        stimB_phase1_rewards: 0, stimB_phase1_total: 0
+      };
+      
+      // Determinar cuál estímulo era el correcto inicialmente
+      let initialCorrectStimulus = null;
+      for (const t of trials) {
+        if (t.correctStimulus && t.reversal === 0) {
+          initialCorrectStimulus = t.correctStimulus;
+          break;
+        }
+      }
+      
+      // Calcular probabilidades observadas
+      trials.forEach(t => {
+        if (t.omission === 1) return;
+        
+        const isPhase0 = t.reversal === 0;
+        const choice = t.choice;
+        const gotReward = t.feedbackCorrect ? 1 : 0;
+        
+        if (isPhase0) {
+          if (choice === 'A') {
+            debugProbs.stimA_phase0_total++;
+            debugProbs.stimA_phase0_rewards += gotReward;
+          } else if (choice === 'B') {
+            debugProbs.stimB_phase0_total++;
+            debugProbs.stimB_phase0_rewards += gotReward;
+          }
+        } else {
+          if (choice === 'A') {
+            debugProbs.stimA_phase1_total++;
+            debugProbs.stimA_phase1_rewards += gotReward;
+          } else if (choice === 'B') {
+            debugProbs.stimB_phase1_total++;
+            debugProbs.stimB_phase1_rewards += gotReward;
+          }
+        }
+      });
+      
+      // Calcular porcentajes
+      const prob_A_phase0 = debugProbs.stimA_phase0_total > 0 
+        ? (debugProbs.stimA_phase0_rewards / debugProbs.stimA_phase0_total).toFixed(3)
+        : 'NA';
+      const prob_B_phase0 = debugProbs.stimB_phase0_total > 0
+        ? (debugProbs.stimB_phase0_rewards / debugProbs.stimB_phase0_total).toFixed(3)
+        : 'NA';
+      const prob_A_phase1 = debugProbs.stimA_phase1_total > 0
+        ? (debugProbs.stimA_phase1_rewards / debugProbs.stimA_phase1_total).toFixed(3)
+        : 'NA';
+      const prob_B_phase1 = debugProbs.stimB_phase1_total > 0
+        ? (debugProbs.stimB_phase1_rewards / debugProbs.stimB_phase1_total).toFixed(3)
+        : 'NA';
+      
       // ⭐ Definir metadatos de trazabilidad (AMPLIADOS)
       const meta = {
         meta_task_version: "PRLT_Flexible_6.0_Refactored",
@@ -3286,7 +3285,17 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // ⭐ NUEVOS METADATOS PARA AUDITORÍA
         meta_participant_id: participantId,
         meta_reversal_schedule: reversalMode === 'predetermined' ? reversalTrial : 'criterion-based',
-        meta_window_focus_changes: windowFocusChanges
+        meta_window_focus_changes: windowFocusChanges,
+        // ⭐ DEBUG: Probabilidades reales experimentadas por el participante
+        meta_debug_initial_correct_stimulus: initialCorrectStimulus || 'NA',
+        meta_debug_prob_reward_stim_A_phase_0: prob_A_phase0,
+        meta_debug_prob_reward_stim_B_phase_0: prob_B_phase0,
+        meta_debug_prob_reward_stim_A_phase_1: prob_A_phase1,
+        meta_debug_prob_reward_stim_B_phase_1: prob_B_phase1,
+        meta_debug_n_trials_stim_A_phase_0: debugProbs.stimA_phase0_total,
+        meta_debug_n_trials_stim_B_phase_0: debugProbs.stimB_phase0_total,
+        meta_debug_n_trials_stim_A_phase_1: debugProbs.stimA_phase1_total,
+        meta_debug_n_trials_stim_B_phase_1: debugProbs.stimB_phase1_total
       };
 
       // ⭐ Construir cabecera del CSV combinando metadatos y columnas de datos
@@ -3297,7 +3306,9 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         'trial', 
         'choice_code', 
         'reward', 
+        'outcome',                   // NUEVO: -1 (pérdida) o 1 (ganancia)
         'actual_is_correct', 
+        'correct_option_in_block',   // NUEVO: opción correcta (A o B) para el bloque actual
         'misleading', 
         'is_reversal_trial',        // RENOMBRADO desde 'reversal'
         'reversal_block',            // RENOMBRADO desde 'phase'
@@ -3312,8 +3323,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         'prob_bad', 
         'icv_global', 
         'icv_learn', 
-        'icv_rev', 
-        'reversal_mode'
+        'icv_rev'
       ];
       
       // Añadir columnas de modo criterio si corresponde
@@ -3355,9 +3365,20 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // → Usar para modelos RL que aprenden del feedback recibido
         const reward = t.omission === 1 ? 'NA' : (t.feedbackCorrect ? 1 : 0);
         
+        // outcome (-1/1) = feedback como ganancia o pérdida
+        const outcome = t.omission === 1 ? 'NA' : (t.feedbackCorrect ? 1 : -1);
+        
         // actual_is_correct (0/1) = corrección OBJETIVA
         // → Usar para análisis conductual (accuracy real)
         const actual_is_correct = t.omission === 1 ? 'NA' : (t.actual_is_correct !== undefined ? t.actual_is_correct : 'NA');
+        
+        // correct_option_in_block: determinar cuál es la opción correcta en este bloque
+        // En el bloque 0 (aprendizaje inicial), la opción correcta es la que se eligió correctamente
+        // En bloques de reversión (1, 2, ...), es la opción opuesta a la del bloque anterior
+        let correct_option_in_block = 'NA';
+        if (t.correctStimulus) {
+          correct_option_in_block = t.correctStimulus;
+        }
         
         // Obtener valores del trial object (sistema refactorizado)
         const reversalBlockValue = t.reversalBlock !== undefined ? t.reversalBlock : 0;
@@ -3372,7 +3393,9 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           t.trial,
           choiceNum,
           reward,
+          outcome,                    // NUEVO: outcome (-1 o 1)
           actual_is_correct,
+          correct_option_in_block,    // NUEVO: correct_option_in_block (A o B)
           t.misleading,
           isReversalTrialValue,      // NUEVA COLUMNA: is_reversal_trial
           reversalBlockValue,         // NUEVA COLUMNA: reversal_block (antes 'phase')
@@ -3387,8 +3410,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           probBad,
           icvGlobal,
           icvLearn,
-          icvRev,
-          reversalMode
+          icvRev
         ];
         
         if (reversalMode === 'criterion') {
@@ -4701,11 +4723,6 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       instructions.style.display = 'none';
       startBtn.style.display = 'none';
       document.getElementById('main-title').classList.add('hidden-during-task');
-      
-      // Mostrar/ocultar contador según configuración
-      const showCoins = document.getElementById('showCoinsCounterSelect').value === 'yes';
-      document.getElementById('coins-container').style.display = showCoins ? 'block' : 'none';
-      document.getElementById('coins-count').textContent = '0';
 
       // Mostrar header de práctica y primera instrucción solo si está en modo práctica
       if (shouldDoPractice) {
@@ -4919,698 +4936,6 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
 
   
 
-     <script>
-      (function(){
-        // ====== Parámetros base ======
-        const DEFAULTS = { lambda: 0.20, v0: 0.10, omega: 1.00, m0: 0.0, w0: 1.0 };
-      
-        function sigmoid(x){ return 1/(1+Math.exp(-x)); }
-        function safeLog(x){ return Math.log(Math.max(x, 1e-12)); }
-
-
-
-        // Observado 0/1 ESTRICTO para VKF (sin caer a correctness)
-function __obs01_vkf(t){
-  // 1) CSV RT u otros: columna feedback 0/1
-  if (t.feedback != null && t.feedback !== '' && t.feedback !== 'NA') {
-    return Number(t.feedback) ? 1 : 0;
-  }
-  // 2) Campo boolean o "0"/"1" que represente LO MOSTRADO
-  if (t.feedbackCorrect != null) {
-    const v = t.feedbackCorrect;
-    if (v === true || v === 'true') return 1;
-    if (v === false || v === 'false') return 0;
-    if (v === 0 || v === 1 || v === '0' || v === '1') return Number(v) ? 1 : 0;
-  }
-  // Nada más: preferimos devolver null (falta de dato) antes que usar correctness
-  return null;
-}
-
-// Asegura que cada trial tenga 'feedback' relleno (solo desde observables):
-function __ensureFeedbackFieldForVKF(trials){
-  for (const t of trials){
-    if (Number(t.omission) === 1) continue;
-    if (t.feedback == null) {
-      const o = __obs01_vkf(t);
-      if (o === 0 || o === 1) t.feedback = o; // solo si proviene del observado
-    }
-  }
-}
-
-// Lector de outcomes para VKF (solo observado)
-// Lector de outcomes para VKF
-function getOutcomesVKF(){
-  // 1) Ruta especial: debug desde TXT hBayesDM
-  if (window.__VKF_FROM_HBAYESDM__ === true && typeof window.getOutcomes === 'function') {
-    try {
-      const arr = window.getOutcomes();
-      if (Array.isArray(arr) && arr.length) {
-        // Normalizamos a 0/1
-        return arr.map(o =>
-          (o === 1 || o === '1' || o === true) ? 1 : 0
-        );
-      }
-    } catch(e){
-      console.error('[VKF] getOutcomes() desde hBayesDM falló, uso trials internos.', e);
-    }
-  }
-
-  // 2) Ruta estándar: desde trials internamente (feedback observado)
-  const list = (typeof __getTrials__==='function') ? __getTrials__() :
-               (typeof trials !== 'undefined' ? trials : []);
-  if (!Array.isArray(list) || list.length===0) return [];
-
-  const valid = list
-    .filter(t => t && Number(t.omission)!==1)
-    .sort((a,b)=>(a.trial||0)-(b.trial||0));
-
-  __ensureFeedbackFieldForVKF(valid);
-
-  const out = [];
-  for (const t of valid){
-    const o = __obs01_vkf(t);
-    if (o===0 || o===1) out.push(o);
-  }
-  return out;
-}
-
-// expón por si quieres comprobar en consola
-window.getOutcomesVKF = getOutcomesVKF;
-
-
-        
-      
-        // ----- lector de outcomes 0/1, robusto -----
-        function getOutcomes(){
-          const list = (typeof __getTrials__==='function')
-                         ? __getTrials__()
-                         : (typeof trials !== 'undefined' ? trials : []);
-          if (!Array.isArray(list) || list.length===0) return [];
-          const valid = list.filter(t => t && Number(t.omission)!==1);
-          const out = [];
-          for (const t of valid){
-            let o = null;
-            if (typeof t.feedbackCorrect === 'boolean') o = t.feedbackCorrect ? 1 : 0;
-            else if (t.counted_is_correct != null)      o = Number(t.counted_is_correct) ? 1 : 0;
-            else if (t.actual_is_correct != null)       o = Number(t.actual_is_correct) ? 1 : 0;
-            else if (t.choice!=null && t.correctStimulus!=null) o = (t.choice===t.correctStimulus)?1:0;
-            if (o !== null) out.push(o);
-          }
-          return out;
-        }
-        // (opcional) expón para consola
-        window.getOutcomes = window.getOutcomes || getOutcomes;
-      
-        // ====== VKF binario con log-likelihood ======
-        // Devuelve trazas y LL usando p_pred = σ(m_{t-1}) (likelihood "previa")
-        function vkfBinaryLL(outcomes, P){
-          const n = outcomes.length;
-          const m = new Array(n), w = new Array(n), v = new Array(n);
-          const alpha = new Array(n), kArr = new Array(n), dM = new Array(n);
-          const pPred = new Array(n);
-      
-          let mi = P.m0, wi = P.w0, vi = P.v0;
-          let LL = 0;
-      
-          for (let t=0; t<n; t++){
-            const p = sigmoid(mi);           // p_pred = σ(m_{t-1})
-            pPred[t] = p;
-            const o  = outcomes[t];
-            // LL Bernoulli
-            LL += o ? safeLog(p) : safeLog(1-p);
-      
-            const k  = (wi + vi) / (wi + vi + P.omega);   // ganancia (RU relativa)
-            const err= o - p;                              // innovación binaria
-            const at = Math.sqrt(wi + vi);                 // α_t (def. en vkf_bin.m)
-      
-            const mNew = mi + k * err;
-            const wNew = (1 - k) * (wi + vi);
-            const dv   = (err*err) - (wi + vi);           // δv_t
-            const vNew = Math.max(1e-8, vi + P.lambda * dv);
-      
-            kArr[t] = k; alpha[t] = at; dM[t] = mNew - mi;
-            m[t]=mNew; w[t]=wNew; v[t]=vNew;
-      
-            mi=mNew; wi=wNew; vi=vNew;
-          }
-          return {LL, m, w, v, alpha, k: kArr, dM, pPred, params:P};
-        }
-      
-        // ====== Estimación de λ (y opcional v0) por MLE ======
-        // Coarse-to-fine: rejilla λ y (opcional) v0; luego refinamiento local de λ.
-        function fitVKF(outcomes, options={}){
-          const omega = options.omega ?? DEFAULTS.omega;
-          const m0    = options.m0    ?? DEFAULTS.m0;
-          const w0    = 1.0; // << fijo como pides
-      
-          const searchV0 = options.fitV0 === true;
-          const v0Grid = searchV0 ? (options.v0Grid || [0.01, 0.05, 0.10, 0.20, 0.40]) : [options.v0 ?? DEFAULTS.v0];
-      
-          // Rejilla gruesa de λ
-          const coarse = options.lambdaGrid || [0.01,0.03,0.05,0.08,0.12,0.16,0.20,0.25,0.30,0.40,0.50,0.65,0.80];
-          let best = {LL:-Infinity, lambda:null, v0:null, trace:null};
-      
-          for (const v0 of v0Grid){
-            for (const lam of coarse){
-              const P = {lambda:lam, v0, omega, m0, w0};
-              const out = vkfBinaryLL(outcomes, P);
-              if (out.LL > best.LL) best = {LL: out.LL, lambda: lam, v0, trace: out};
-            }
-          }
-      
-          // Refinamiento local 1D en λ alrededor del mejor (manteniendo v0)
-          const lmin = Math.max(0.001, (best.lambda - 0.08));
-          const lmax = Math.min(0.999, (best.lambda + 0.08));
-          const fineN = 25;
-          for (let i=0;i<fineN;i++){
-            const lam = lmin + i*(lmax-lmin)/(fineN-1);
-            const P = {lambda:lam, v0:best.v0, omega, m0, w0};
-            const out = vkfBinaryLL(outcomes, P);
-            if (out.LL > best.LL) best = {LL: out.LL, lambda: lam, v0: best.v0, trace: out};
-          }
-          return best; // incluye best.trace con m,w,v,alpha,k,dM
-        }
-      
-        // ====== Render en tu bloque de resultados ======
-        function summarize(arr){
-          const n=arr.length; if (!n) return {mean:null,p90:null,last:null,max:null};
-          const mean = arr.reduce((a,b)=>a+b,0)/n;
-          const sorted = [...arr].sort((a,b)=>a-b);
-          const p90 = sorted[Math.floor(0.9*(n-1))];
-          const last= arr[n-1];
-          const max = sorted[n-1];
-          return {mean,p90,last,max};
-        }
-      
-        // Ejecuta tras pintar resultados (sin pelearte con otros hooks)
-        function onResultsRendered(cb){
-          const res = document.getElementById('results');
-          if (!res){ setTimeout(()=>onResultsRendered(cb), 50); return; }
-          const obs = new MutationObserver(()=>{ if (res.innerText.length>0){ try{cb();}catch(e){console.error(e);} obs.disconnect(); }});
-          obs.observe(res, {childList:true,subtree:true});
-        }
-
-        // ====== VKF RESPONSE MODEL (Behavioral Coupling) ======
-        // Fits VKF perceptual model + softmax response model to OBSERVED CHOICES
-        // This captures how beliefs (m, v) drive behavior via β_VKF parameter
-        
-        // Helper function to get choices
-        function getChoicesVKF(){
-          // 1) Ruta especial: debug desde TXT hBayesDM
-          if (window.__VKF_FROM_HBAYESDM__ === true && typeof window.getChoices === 'function') {
-            try {
-              const arr = window.getChoices();
-              if (Array.isArray(arr) && arr.length) {
-                // Normalizar a 0/1 por si acaso
-                return arr.map(c =>
-                  (c === 1 || c === '1' || c === 'B' || c === 'b' || c === 2 || c === '2')
-                    ? 1
-                    : 0
-                );
-              }
-            } catch(e){
-              console.error('[VKF] getChoices() desde hBayesDM falló, uso trials internos.', e);
-            }
-          }
-        
-          // 2) Ruta estándar: leer de trials internos
-          const list = (typeof __getTrials__==='function') ? __getTrials__() :
-                       (typeof trials !== 'undefined' ? trials : []);
-          if (!Array.isArray(list) || list.length===0) return [];
-          const valid = list
-            .filter(t => t && Number(t.omission)!==1)
-            .sort((a,b)=>(a.trial||0)-(b.trial||0));
-        
-          const choices = [];
-          for (const t of valid){
-            // Map choice to 0/1: assuming 'A'=0, 'B'=1
-            if (t.choice === 'A' || t.choice === 0 || t.choice === '0') choices.push(0);
-            else if (t.choice === 'B' || t.choice === 1 || t.choice === '1') choices.push(1);
-          }
-          return choices;
-        }
-        window.getChoicesVKF = getChoicesVKF;
-
-
-        // Compute VKF beliefs + NLL for choices using softmax response model
-        // Returns NLL based on how well VKF beliefs predict actual choices via β_VKF
-        function vkfResponseNLL(choices, outcomes, P){
-          const n = outcomes.length;
-          if (choices.length !== n) {
-            console.error('vkfResponseNLL: choices and outcomes length mismatch');
-            return Infinity;
-          }
-
-          let mi = P.m0, wi = P.w0, vi = P.v0;
-          let NLL = 0;
-
-          for (let t=0; t<n; t++){
-            const o = outcomes[t];
-            const c = choices[t];
-            
-            // Belief about option A vs B (assuming binary outcomes map to probability of correct)
-            // m represents belief in logit space
-            const pA = sigmoid(mi);   // Probability that option A is correct
-            const pB = 1 - pA;        // Probability that option B is correct
-            
-            // Softmax with β_VKF: choice probabilities based on beliefs
-            // We model the probability of choosing A vs B based on beliefs
-            const expA = Math.exp(P.beta_vkf * pA);
-            const expB = Math.exp(P.beta_vkf * pB);
-            const probChooseA = expA / (expA + expB);
-            const probChooseB = 1 - probChooseA;
-            
-            // Likelihood of observed choice
-            const probChoice = (c === 0) ? probChooseA : probChooseB;
-            NLL -= safeLog(probChoice);
-            
-            // Update VKF beliefs (same as perceptual model)
-            const p = sigmoid(mi);
-            const k  = (wi + vi) / (wi + vi + P.omega);
-            const err= o - p;
-            const at = Math.sqrt(wi + vi);
-            
-            const mNew = mi + k * err;
-            const wNew = (1 - k) * (wi + vi);
-            const dv   = (err*err) - (wi + vi);
-            const vNew = Math.max(1e-8, vi + P.lambda * dv);
-            
-            mi=mNew; wi=wNew; vi=vNew;
-          }
-          return NLL;
-        }
-
-        // Fit VKF response model: estimate λ, v₀, β_VKF via MLE on observed choices
-        function fitVKF_Response(choices, outcomes, options={}){
-          const omega = options.omega ?? DEFAULTS.omega;
-          const m0    = options.m0    ?? DEFAULTS.m0;
-          const w0    = 1.0;
-
-          // Grids for parameter search
-          const lambdaGrid = options.lambdaGrid || [0.01,0.05,0.10,0.15,0.20,0.30,0.40,0.50,0.65,0.80];
-          const v0Grid = options.v0Grid || [0.01, 0.05, 0.10, 0.20, 0.40, 0.60];
-          const betaVKFGrid = options.betaVKFGrid || [0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0, 15.0, 20.0];
-
-          let best = {NLL: Infinity, lambda: null, v0: null, beta_vkf: null};
-
-          // Coarse grid search
-          for (const lam of lambdaGrid){
-            for (const v0 of v0Grid){
-              for (const beta of betaVKFGrid){
-                const P = {lambda: lam, v0, beta_vkf: beta, omega, m0, w0};
-                const nll = vkfResponseNLL(choices, outcomes, P);
-                if (nll < best.NLL) {
-                  best = {NLL: nll, lambda: lam, v0, beta_vkf: beta};
-                }
-              }
-            }
-          }
-
-          // Fine-tune lambda around best value
-          const lmin = Math.max(0.001, best.lambda - 0.08);
-          const lmax = Math.min(0.999, best.lambda + 0.08);
-          for (let i=0; i<15; i++){
-            const lam = lmin + i*(lmax-lmin)/14;
-            const P = {lambda: lam, v0: best.v0, beta_vkf: best.beta_vkf, omega, m0, w0};
-            const nll = vkfResponseNLL(choices, outcomes, P);
-            if (nll < best.NLL) {
-              best.NLL = nll;
-              best.lambda = lam;
-            }
-          }
-
-          // Compute full trace with best parameters
-          best.trace = computeVKFTrace(outcomes, {
-            lambda: best.lambda, 
-            v0: best.v0, 
-            omega, 
-            m0, 
-            w0
-          });
-
-          return best;
-        }
-
-        // Compute VKF trace for clinical analysis
-        function computeVKFTrace(outcomes, P){
-          const n = outcomes.length;
-          const m = new Array(n), w = new Array(n), v = new Array(n);
-          const alpha = new Array(n), k = new Array(n), dM = new Array(n);
-          const pPred = new Array(n);
-
-          let mi = P.m0, wi = P.w0, vi = P.v0;
-
-          for (let t=0; t<n; t++){
-            const p = sigmoid(mi);
-            pPred[t] = p;
-            const o = outcomes[t];
-            
-            const kt = (wi + vi) / (wi + vi + P.omega);
-            const err = o - p;
-            const at = Math.sqrt(wi + vi);
-            
-            const mNew = mi + kt * err;
-            const wNew = (1 - kt) * (wi + vi);
-            const dv = (err*err) - (wi + vi);
-            const vNew = Math.max(1e-8, vi + P.lambda * dv);
-            
-            k[t] = kt;
-            alpha[t] = at;
-            dM[t] = mNew - mi;
-            m[t] = mNew;
-            w[t] = wNew;
-            v[t] = vNew;
-            
-            mi = mNew;
-            wi = wNew;
-            vi = vNew;
-          }
-          
-          return {m, w, v, alpha, k, dM, pPred};
-        }
-
-        // Analyze pre/post reversal dynamics
-        function analyzeReversalDynamics(trace, reversalTrial){
-          if (!trace || !reversalTrial) return null;
-          
-          const n = trace.v.length;
-          const revIdx = reversalTrial - 1; // Convert to 0-based index
-          
-          if (revIdx <= 0 || revIdx >= n) {
-            // No clear reversal in the data
-            return {
-              preRev: null,
-              postRev: null,
-              deltaV: null,
-              deltaAlpha: null
-            };
-          }
-          
-          // Pre-reversal: last 5 trials before reversal
-          const preStart = Math.max(0, revIdx - 5);
-          const preV = trace.v.slice(preStart, revIdx);
-          const preAlpha = trace.alpha.slice(preStart, revIdx);
-          
-          // Post-reversal: first 10 trials after reversal
-          const postEnd = Math.min(n, revIdx + 10);
-          const postV = trace.v.slice(revIdx, postEnd);
-          const postAlpha = trace.alpha.slice(revIdx, postEnd);
-          
-          const meanArr = arr => arr.reduce((a,b)=>a+b,0) / arr.length;
-          
-          const preRevV = meanArr(preV);
-          const postRevV = meanArr(postV);
-          const preRevAlpha = meanArr(preAlpha);
-          const postRevAlpha = meanArr(postAlpha);
-          
-          return {
-            preRev: { v: preRevV, alpha: preRevAlpha },
-            postRev: { v: postRevV, alpha: postRevAlpha },
-            deltaV: postRevV - preRevV,
-            deltaAlpha: postRevAlpha - preRevAlpha
-          };
-        }
-
-
-
-        /**
-         * KAPPA-LIKE MOST IDENTICAL TO HGF FORMULA
-         * 
-         * HGF: μ_t^(2) = μ_{t-1}^(2) + κ₂ * [volatility-informed LR] * δ_t^(1)
-         * 
-         * In VKF:
-         * - m(t) is like μ^(1) (belief about probability)
-         * - v(t) is the volatility estimate (modulates learning)
-         * - δm(t) is prediction error at level 1
-         * - α(t) = √(w+v) is the volatility-informed learning rate
-         * 
-         * κ-like = α(t) / baseline_α = √(w+v) / √w
-         */
-        function computeKappaLike_IdenticalToHGF(vkfTrace, w0) {
-          if (! vkfTrace || !vkfTrace.alpha || vkfTrace.alpha.length === 0) {
-            return {
-              kappa_like_mean: 0,
-              kappa_like_range: [0, 0],
-              kappa_like_var: 0,
-              volatility_explains_kappa: 0,
-              trial_wise: []
-            };
-          }
-        
-          const alpha = vkfTrace.alpha;
-          const baseline_alpha = Math.sqrt(w0);
-        
-          // κ-like for each trial
-          const kappa_like_trial = alpha.map(a => a / baseline_alpha);
-        
-          // Aggregate statistics
-          const mean_kappa = kappa_like_trial.reduce((a, b) => a + b, 0) / kappa_like_trial.length;
-          const max_kappa = Math.max(... kappa_like_trial);
-          const min_kappa = Math.min(...kappa_like_trial);
-        
-          // Variance
-          const var_kappa = Math.sqrt(
-            kappa_like_trial. reduce((s, k) => s + (k - mean_kappa) ** 2, 0) / kappa_like_trial.length
-          );
-        
-          // Correlation: how much does v explain kappa variation?
-          const v = vkfTrace.v;
-          if (! v || v.length === 0) {
-            return {
-              kappa_like_mean: mean_kappa,
-              kappa_like_range: [min_kappa, max_kappa],
-              kappa_like_var: var_kappa,
-              volatility_explains_kappa: 0,
-              trial_wise: kappa_like_trial
-            };
-          }
-        
-          const v_mean = v.reduce((a, b) => a + b, 0) / v.length;
-          const kappa_mean = mean_kappa;
-        
-          let cov_v_kappa = 0, var_v = 0;
-          for (let i = 0; i < v.length && i < kappa_like_trial.length; i++) {
-            const v_dev = v[i] - v_mean;
-            const k_dev = kappa_like_trial[i] - kappa_mean;
-            cov_v_kappa += v_dev * k_dev;
-            var_v += v_dev ** 2;
-          }
-        
-          const r_squared = var_v > 0 ? (cov_v_kappa ** 2) / (var_v * var_v) : 0;
-        
-          return {
-            kappa_like_mean: mean_kappa,
-            kappa_like_range: [min_kappa, max_kappa],
-            kappa_like_var: var_kappa,
-            volatility_explains_kappa: r_squared,
-            trial_wise: kappa_like_trial
-          };
-        }
-
-        
-        // Clinical interpretation of VKF parameters
-        function interpretVKFClinical(fit, reversalAnalysis){
-          let interp = [];
-          
-          // λ (volatility learning rate) ≈ HGF ω₂
-          const lambda = fit.lambda;
-          if (lambda < 0.15) {
-            interp.push(`<strong>λ = ${lambda.toFixed(3)}</strong> (bajo): Aprendizaje lento de volatilidad. Ajuste gradual a cambios ambientales. Menos sensible a inestabilidad.`);
-          } else if (lambda < 0.40) {
-            interp.push(`<strong>λ = ${lambda.toFixed(3)}</strong> (moderado): Aprendizaje equilibrado de volatilidad. Adaptación típica a cambios.`);
-          } else {
-            interp.push(`<strong>λ = ${lambda.toFixed(3)}</strong> (alto): Aprendizaje rápido de volatilidad. Alta sensibilidad a inestabilidad ambiental. Posible sobre-ajuste a ruido.`);
-          }
-          
-          // v₀ (initial volatility) ≈ HGF u₃₀
-          const v0 = fit.v0;
-          if (v0 < 0.10) {
-            interp.push(`<strong>v₀ = ${v0.toFixed(3)}</strong> (bajo): Prior de baja volatilidad inicial. Expectativa de estabilidad ambiental.`);
-          } else if (v0 < 0.30) {
-            interp.push(`<strong>v₀ = ${v0.toFixed(3)}</strong> (moderado): Prior equilibrado de volatilidad inicial.`);
-          } else {
-            interp.push(`<strong>v₀ = ${v0.toFixed(3)}</strong> (alto): Prior de alta volatilidad inicial. Expectativa de inestabilidad.`);
-          }
-          
-          // β_VKF (decision temperature) ≈ HGF β
-          const beta = fit.beta_vkf;
-          if (beta < 3.0) {
-            interp.push(`<strong>β_VKF = ${beta.toFixed(2)}</strong> (bajo): Acoplamiento débil percepción-acción. Decisiones ruidosas, exploración alta.`);
-          } else if (beta < 10.0) {
-            interp.push(`<strong>β_VKF = ${beta.toFixed(2)}</strong> (moderado): Acoplamiento equilibrado percepción-acción. Decisiones consistentes con creencias.`);
-          } else {
-            interp.push(`<strong>β_VKF = ${beta.toFixed(2)}</strong> (alto): Acoplamiento fuerte percepción-acción. Decisiones muy deterministas, posible rigidez.`);
-          }
-          
-          // α(t) = √(w+v) - dynamic learning rate
-          if (fit.trace) {
-            const meanAlpha = fit.trace.alpha.reduce((a,b)=>a+b,0) / fit.trace.alpha.length;
-            interp.push(`<strong>α̅ (tasa dinámica media) = ${meanAlpha.toFixed(3)}</strong>: Equivalente a κ en HGF. Velocidad efectiva de actualización de creencias.`);
-          }
-          
-          // Reversal dynamics
-          if (reversalAnalysis && reversalAnalysis.preRev) {
-            const deltaV = reversalAnalysis.deltaV;
-            const deltaAlpha = reversalAnalysis.deltaAlpha;
-            
-            interp.push(`<strong>Pre-reversión:</strong> v̅ = ${reversalAnalysis.preRev.v.toFixed(3)}, α̅ = ${reversalAnalysis.preRev.alpha.toFixed(3)}`);
-            interp.push(`<strong>Post-reversión:</strong> v̅ = ${reversalAnalysis.postRev.v.toFixed(3)}, α̅ = ${reversalAnalysis.postRev.alpha.toFixed(3)}`);
-            interp.push(`<strong>ΔV = ${deltaV.toFixed(3)}</strong> ${deltaV > 0.05 ? '(↑ volatilidad detectada)' : '(estable)'}, <strong>Δα = ${deltaAlpha.toFixed(3)}</strong> ${deltaAlpha > 0.05 ? '(↑ tasa aprendizaje)' : '(estable)'}`);
-            
-            if (deltaV > 0.15) {
-              interp.push(`⚠️ <strong>Respuesta a reversión:</strong> Fuerte incremento en volatilidad percibida (ΔV=${deltaV.toFixed(3)}). Detección robusta del cambio contextual.`);
-            } else if (deltaV < 0.05) {
-              interp.push(`⚠️ <strong>Respuesta a reversión:</strong> Incremento mínimo en volatilidad (ΔV=${deltaV.toFixed(3)}). Posible insensibilidad al cambio contextual.`);
-            }
-          }
-          
-          return interp;
-        }
-
-        // Render VKF Clinical Phenotype
-        function renderVKF_Clinical(){
-          const host = document.getElementById('results');
-          if (!host) return;
-          
-          const outcomes = getOutcomesVKF();
-          const choices = getChoicesVKF();
-          
-          if (!outcomes.length || !choices.length) {
-            console.log('VKF Clinical: No data available');
-            return;
-          }
-          
-          if (outcomes.length !== choices.length) {
-            console.error('VKF Clinical: choices/outcomes length mismatch');
-            return;
-          }
-          
-          console.log('🧠 Fitting VKF Response Model (choices + outcomes)...');
-          const fit = fitVKF_Response(choices, outcomes, { omega: 1.0 });
-          console.log('✅ VKF Response fitted:', JSON.stringify({
-            lambda: fit.lambda,
-            v0: fit.v0,
-            beta_vkf: fit.beta_vkf,
-            NLL: fit.NLL
-          }));
-
-          // ⭐ AQUÍ: Calcula κ-like
-          const kappaLikeAnalysis = computeKappaLike_IdenticalToHGF(fit.trace, 1.0);
-          const kappa_like_mean = kappaLikeAnalysis.kappa_like_mean;
-          const kappa_like_min = kappaLikeAnalysis. kappa_like_range[0];
-          const kappa_like_max = kappaLikeAnalysis.kappa_like_range[1];
-          const r_squared = kappaLikeAnalysis.volatility_explains_kappa;
-
-          
-          // Get reversal trial info
-          let reversalTrial = null;
-          try {
-            const list = (typeof __getTrials__==='function') ? __getTrials__() :
-                         (typeof trials !== 'undefined' ? trials : []);
-            const revTrial = list.find(t => t.reversal === 1);
-            if (revTrial) reversalTrial = revTrial.trial;
-          } catch(e) {
-            console.warn('Could not determine reversal trial:', e);
-          }
-          
-          const reversalAnalysis = analyzeReversalDynamics(fit.trace, reversalTrial);
-          const clinicalInterp = interpretVKFClinical(fit, reversalAnalysis);
-          
-          // Summarize trace statistics
-          const sV = summarize(fit.trace.v);
-          const sA = summarize(fit.trace.alpha);
-          
-          const html = `
-            <div style="margin-top:24px;border:2px solid #8ab4f8;border-radius:12px;padding:18px;background:rgba(138,180,248,0.08);">
-              <div style="font-weight:700;font-size:1.1rem;margin-bottom:12px;color:#8ab4f8;">🧠 Fenotipo Clínico VKF (Modelo Completo)</div>
-              
-              <div style="background:rgba(0,0,0,0.2);padding:14px;border-radius:8px;margin-bottom:14px;">
-                <div style="font-weight:600;margin-bottom:8px;color:var(--text-primary);">Modelo Perceptual + Respuesta (MLE sobre elecciones observadas)</div>
-                <div style="font-size:0.93rem;line-height:1.7;">
-                  <div><strong>Parámetros VKF (fijados):</strong> w₀=1.000, ω=1.000, m₀=0</div>
-                  <div><strong>Parámetros estimados:</strong></div>
-                  <div style="margin-left:20px;">
-                    • λ (volatility learning rate) = ${fit.lambda.toFixed(3)} <span style="color:#a0a0a0;">≈ HGF ω₂</span><br>
-                    • v₀ (initial volatility) = ${fit.v0.toFixed(3)} <span style="color:#a0a0a0;">≈ HGF u₃₀</span><br>
-                    • β_VKF (decision coupling) = ${fit.beta_vkf.toFixed(2)} <span style="color:#a0a0a0;">≈ HGF β</span>
-                  </div>
-                  <div style="margin-top:8px;"><strong>Fit Quality:</strong> NLL = ${fit.NLL.toFixed(2)}</div>
-                </div>
-              </div>
-              
-              <div style="background:rgba(0,0,0,0.2);padding:14px;border-radius:8px;margin-bottom:14px;">
-                <div style="font-weight:600;margin-bottom:8px;color:var(--text-primary);">Trazas Computacionales</div>
-                <div style="font-size:0.93rem;line-height:1.7;">
-                  <div><strong>Volatilidad (v):</strong> v̅=${sV.mean.toFixed(3)}, P90=${sV.p90.toFixed(3)}, v<sub>final</sub>=${sV.last.toFixed(3)}, v<sub>max</sub>=${sV.max.toFixed(3)}</div>
-                  <div><strong>Tasa de aprendizaje dinámica (α):</strong> α̅=${sA.mean.toFixed(3)}, P90=${sA.p90.toFixed(3)}, α<sub>final</sub>=${sA.last.toFixed(3)} <span style="color:#a0a0a0;">≈ HGF κ</span></div>
-                  <div style="margin-top:6px;color:var(--text-muted);font-size:0.88rem;">
-                    α(t) = √(w+v) captura la tasa de aprendizaje efectiva en cada trial, adaptándose dinámicamente a la volatilidad percibida.
-                  </div>
-                </div>
-              </div>
-              
-              <div style="background:rgba(0,0,0,0.2);padding:14px;border-radius:8px;margin-bottom:14px;">
-                <div style="font-weight:600;margin-bottom:10px;color:var(--text-primary);">📊 Interpretación Clínica</div>
-                <div style="font-size:0.93rem;line-height:1.8;">
-                  ${clinicalInterp.map(s => `<div style="margin-bottom:6px;">• ${s}</div>`).join('')}
-                </div>
-              </div>
-              <div style="background:rgba(0,0,0,0.2);padding:14px;border-radius:8px;">
-                <div style="font-weight:600;margin-bottom:8px;color:var(--text-primary);">🔄 Mapeo HGF ⟷ VKF</div>
-                <div style="font-size:0.88rem;line-height:1.7;color:var(--text-muted);">
-                  <div><strong>HGF ω₂</strong> (evolving volatility, bajo=actualiz lenta de belief sobre la probabildiad) ≈ <strong>VKF λ</strong> (volatility learning rate)</div>
-                  <div><strong>HGF u₃₀</strong> (initial volatility prior, "environmental volatility") ≈ <strong>VKF v₀</strong> (initial o environmental volatility)</div>
-                  <div><strong>HGF κ</strong> (Cuánto influye la unexpected uncertainty, alto ruido=reversal) ≈ <strong>VKF α(t)</strong> = √(w+v) (dynamic learning rate) (POCO CLARO)</div>
-                  <div><strong>HGF β</strong> (decision noise) ≈ <strong>VKF β_VKF</strong> (perception-action coupling)</div>
-                  <div style="margin-top:8px;font-style:italic;">
-                    El VKF simplifica el HGF de 3 niveles a un modelo más parsimonioso manteniendo equivalencia fenomenológica.
-                  </div>
-                </div>
-              </div>
-
-              <div style="border: 2px solid #10b981; padding: 15px; margin-top: 20px; border-radius: 8px; background: rgba(16,185,129,0.05);">
-                <h4 style="margin-top: 0; color: #10b981;">κ-like (VKF Equivalent to HGF Coupling Reed 2020)</h4>
-                <p>
-                  <strong>κ-like = √(w + v) / √w = ${kappa_like_mean.toFixed(3)}</strong>
-                  <br>
-                  <small>Interpretation: Volatility amplifies learning by factor of <strong>${kappa_like_mean.toFixed(2)}x</strong></small>
-                </p>
-                <p>
-                  Range: [${kappa_like_min.toFixed(3)}, ${kappa_like_max.toFixed(3)}]
-                  <br>
-                  <small>Volatility explains ${(r_squared*100).toFixed(1)}% of κ-like variation</small>
-                </p>
-                <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-                  <strong>Clinical mapping to HGF:</strong>
-                  ${kappa_like_mean > 1.8 ? "🔴 HIGH κ-like (paranoia pattern)" 
-                    : kappa_like_mean > 1.3 ? "🟡 MODERATE" 
-                    : "🟢 LOW κ-like (control pattern)"}
-                  <br>
-                  <small>
-                    This κ-like directly corresponds to HGF's coupling parameter. 
-                    Can be validated against TAPAS κ₂ estimates.
-                  </small>
-                </p>
-              </div>
-              
-              <div style="margin-top:12px;font-size:0.82rem;color:var(--text-muted);line-height:1.5;">
-                <strong>Referencias:</strong> Piray & Daw (2021) <em>PLoS Comp Bio</em> - "A simple model for learning in volatile environments"<br>
-                Mathys et al. (2014) <em>Front Hum Neurosci</em> - HGF framework<br>
-                <strong>Metodología:</strong> MLE sobre elecciones observadas (no solo outcomes). VKF genera creencias → softmax(β_VKF) → probabilidades de elección.
-              </div>
-            </div>`;
-          
-          host.insertAdjacentHTML('beforeend', html);
-        }
-        
-        // Hook into results rendering (after existing VKF)
-        // onResultsRendered(renderVKF_Clinical); // desactivado: VKF se llamaba 2 veces
-        
-        // Usar tarjeta completa para todos los análisis (incluido hBayesDM .txt)
-        window.__vkfFitAndRender__ = renderVKF_Clinical;
-        window.__vkfResponseFitAndRender__ = renderVKF_Clinical;
-      })();
-      </script>
 
 
 		<script>
