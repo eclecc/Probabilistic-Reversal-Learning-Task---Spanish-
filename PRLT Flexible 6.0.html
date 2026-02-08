@@ -2576,26 +2576,26 @@ function endPracticeBlock() {
       let phase = 0, trial_in_phase = trialNumber;
       let is_reversal_first_trial = 0;
       
-      // En modo criterio, usamos isReversalPhase en lugar de reversalTrial
-      if (reversalMode === 'criterion') {
-        // Buscar el trial actual en el array de trials para determinar su fase
-        const currentTrial = trials.find(t => t.trial === trialNumber);
-        if (currentTrial && currentTrial.reversal === 1) {
-          phase = 1;
-          // Calcular trial_in_phase contando trials previos en fase de reversión
-          const reversalTrialsBeforeCurrent = trials.filter(t => t.trial < trialNumber && t.reversal === 1).length;
-          trial_in_phase = reversalTrialsBeforeCurrent + 1;
-          if (currentTrial.is_reversal_initiation === 1) {
-            is_reversal_first_trial = 1;
-          }
-        }
-      } else {
-        // Modo predeterminado: usar reversalTrial fijo
-        if (reversalTrial !== null && trialNumber >= reversalTrial) {
-          phase = 1;
-          trial_in_phase = trialNumber - reversalTrial + 1;
-          if (trialNumber === reversalTrial) is_reversal_first_trial = 1;
-        }
+      // Buscar el trial actual en el array de trials
+      const currentTrial = trials.find(t => t.trial === trialNumber);
+      if (!currentTrial) {
+        return { phase, trial_in_phase, is_reversal_first_trial };
+      }
+      
+      // Usar el reversalBlock del trial para determinar la fase
+      const currentBlock = currentTrial.reversalBlock || 0;
+      phase = currentBlock > 0 ? 1 : 0;
+      
+      // Calcular trial_in_phase: contar trials en el mismo bloque antes de este
+      const trialsInSameBlock = trials.filter(t => 
+        t.reversalBlock === currentBlock && t.trial < trialNumber
+      ).length;
+      trial_in_phase = trialsInSameBlock + 1;
+      
+      // Marcar is_reversal_first_trial = 1 si es el primer trial del bloque actual
+      // (excepto para el bloque 0 que es el aprendizaje inicial)
+      if (currentBlock > 0 && trialsInSameBlock === 0) {
+        is_reversal_first_trial = 1;
       }
       
       return { phase, trial_in_phase, is_reversal_first_trial };
@@ -3204,6 +3204,66 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       // Sistema de exportación CSV con metadatos completos de auditoría
       // y columnas refactorizadas según el nuevo sistema de reversión.
       
+      // ⭐ CALCULAR PROBABILIDADES REALES PARA DEBUG
+      // Calcular las probabilidades de recompensa que experimentó el participante
+      // para cada estímulo en cada fase
+      const debugProbs = {
+        stimA_phase0_rewards: 0, stimA_phase0_total: 0,
+        stimB_phase0_rewards: 0, stimB_phase0_total: 0,
+        stimA_phase1_rewards: 0, stimA_phase1_total: 0,
+        stimB_phase1_rewards: 0, stimB_phase1_total: 0
+      };
+      
+      // Determinar cuál estímulo era el correcto inicialmente
+      let initialCorrectStimulus = null;
+      for (const t of trials) {
+        if (t.correctStimulus && t.reversal === 0) {
+          initialCorrectStimulus = t.correctStimulus;
+          break;
+        }
+      }
+      
+      // Calcular probabilidades observadas
+      trials.forEach(t => {
+        if (t.omission === 1) return;
+        
+        const isPhase0 = t.reversal === 0;
+        const choice = t.choice;
+        const gotReward = t.feedbackCorrect ? 1 : 0;
+        
+        if (isPhase0) {
+          if (choice === 'A') {
+            debugProbs.stimA_phase0_total++;
+            debugProbs.stimA_phase0_rewards += gotReward;
+          } else if (choice === 'B') {
+            debugProbs.stimB_phase0_total++;
+            debugProbs.stimB_phase0_rewards += gotReward;
+          }
+        } else {
+          if (choice === 'A') {
+            debugProbs.stimA_phase1_total++;
+            debugProbs.stimA_phase1_rewards += gotReward;
+          } else if (choice === 'B') {
+            debugProbs.stimB_phase1_total++;
+            debugProbs.stimB_phase1_rewards += gotReward;
+          }
+        }
+      });
+      
+      // Calcular porcentajes
+      const prob_A_phase0 = debugProbs.stimA_phase0_total > 0 
+        ? (debugProbs.stimA_phase0_rewards / debugProbs.stimA_phase0_total).toFixed(3)
+        : 'NA';
+      const prob_B_phase0 = debugProbs.stimB_phase0_total > 0
+        ? (debugProbs.stimB_phase0_rewards / debugProbs.stimB_phase0_total).toFixed(3)
+        : 'NA';
+      const prob_A_phase1 = debugProbs.stimA_phase1_total > 0
+        ? (debugProbs.stimA_phase1_rewards / debugProbs.stimA_phase1_total).toFixed(3)
+        : 'NA';
+      const prob_B_phase1 = debugProbs.stimB_phase1_total > 0
+        ? (debugProbs.stimB_phase1_rewards / debugProbs.stimB_phase1_total).toFixed(3)
+        : 'NA';
+      
       // ⭐ Definir metadatos de trazabilidad (AMPLIADOS)
       const meta = {
         meta_task_version: "PRLT_Flexible_6.0_Refactored",
@@ -3225,7 +3285,17 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // ⭐ NUEVOS METADATOS PARA AUDITORÍA
         meta_participant_id: participantId,
         meta_reversal_schedule: reversalMode === 'predetermined' ? reversalTrial : 'criterion-based',
-        meta_window_focus_changes: windowFocusChanges
+        meta_window_focus_changes: windowFocusChanges,
+        // ⭐ DEBUG: Probabilidades reales experimentadas por el participante
+        meta_debug_initial_correct_stimulus: initialCorrectStimulus || 'NA',
+        meta_debug_prob_reward_stim_A_phase_0: prob_A_phase0,
+        meta_debug_prob_reward_stim_B_phase_0: prob_B_phase0,
+        meta_debug_prob_reward_stim_A_phase_1: prob_A_phase1,
+        meta_debug_prob_reward_stim_B_phase_1: prob_B_phase1,
+        meta_debug_n_trials_stim_A_phase_0: debugProbs.stimA_phase0_total,
+        meta_debug_n_trials_stim_B_phase_0: debugProbs.stimB_phase0_total,
+        meta_debug_n_trials_stim_A_phase_1: debugProbs.stimA_phase1_total,
+        meta_debug_n_trials_stim_B_phase_1: debugProbs.stimB_phase1_total
       };
 
       // ⭐ Construir cabecera del CSV combinando metadatos y columnas de datos
@@ -3236,7 +3306,9 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         'trial', 
         'choice_code', 
         'reward', 
+        'outcome',                   // NUEVO: -1 (pérdida) o 1 (ganancia)
         'actual_is_correct', 
+        'correct_option_in_block',   // NUEVO: opción correcta (A o B) para el bloque actual
         'misleading', 
         'is_reversal_trial',        // RENOMBRADO desde 'reversal'
         'reversal_block',            // RENOMBRADO desde 'phase'
@@ -3251,8 +3323,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         'prob_bad', 
         'icv_global', 
         'icv_learn', 
-        'icv_rev', 
-        'reversal_mode'
+        'icv_rev'
       ];
       
       // Añadir columnas de modo criterio si corresponde
@@ -3294,9 +3365,20 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         // → Usar para modelos RL que aprenden del feedback recibido
         const reward = t.omission === 1 ? 'NA' : (t.feedbackCorrect ? 1 : 0);
         
+        // outcome (-1/1) = feedback como ganancia o pérdida
+        const outcome = t.omission === 1 ? 'NA' : (t.feedbackCorrect ? 1 : -1);
+        
         // actual_is_correct (0/1) = corrección OBJETIVA
         // → Usar para análisis conductual (accuracy real)
         const actual_is_correct = t.omission === 1 ? 'NA' : (t.actual_is_correct !== undefined ? t.actual_is_correct : 'NA');
+        
+        // correct_option_in_block: determinar cuál es la opción correcta en este bloque
+        // En el bloque 0 (aprendizaje inicial), la opción correcta es la que se eligió correctamente
+        // En bloques de reversión (1, 2, ...), es la opción opuesta a la del bloque anterior
+        let correct_option_in_block = 'NA';
+        if (t.correctStimulus) {
+          correct_option_in_block = t.correctStimulus;
+        }
         
         // Obtener valores del trial object (sistema refactorizado)
         const reversalBlockValue = t.reversalBlock !== undefined ? t.reversalBlock : 0;
@@ -3311,7 +3393,9 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           t.trial,
           choiceNum,
           reward,
+          outcome,                    // NUEVO: outcome (-1 o 1)
           actual_is_correct,
+          correct_option_in_block,    // NUEVO: correct_option_in_block (A o B)
           t.misleading,
           isReversalTrialValue,      // NUEVA COLUMNA: is_reversal_trial
           reversalBlockValue,         // NUEVA COLUMNA: reversal_block (antes 'phase')
@@ -3326,8 +3410,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
           probBad,
           icvGlobal,
           icvLearn,
-          icvRev,
-          reversalMode
+          icvRev
         ];
         
         if (reversalMode === 'criterion') {
