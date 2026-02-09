@@ -7,6 +7,14 @@ Parc Sanitari Sant Joan de Déu
 
 
 
+Referencias Principales
+
+den Ouden, H. E., et al. (2013). "Dissociable Effects of Dopamine and Serotonin on Reversal Learning". Neuron, 80(4), 1090–1100. Este estudio es fundamental para comprender las bases neurobiológicas del aprendizaje de inversión, disociando el papel de la dopamina y la serotonina en la adaptación del comportamiento ante cambios en las contingencias de recompensa.
+
+Waltmann, M., et al. (2021). "Altered probabilistic reversal learning in borderline personality disorder: A systematic review and meta-analysis". Neuroscience & Biobehavioral Reviews, 127, 85–97. Este metaanálisis destaca la utilidad clínica de la tarea de aprendizaje de inversión probabilística para identificar patrones de aprendizaje alterados en poblaciones psiquiátricas, validando su sensibilidad para capturar dificultades en la flexibilidad cognitiva y la adaptación al feedback incierto.
+
+
+
 # Documento Técnico: Tarea de Aprendizaje Inverso Probabilístico (PRLT)
 
 **Versión de la Tarea:** 6.0 (Flexible)
