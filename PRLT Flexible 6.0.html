@@ -642,10 +642,10 @@
             </select>
           </label>
           <label>
-            Bloque de práctica
-            <select id="practiceBlockSelect">
-              <option value="yes" >Sí</option>
-              <option value="no" selected>No (ir directo a la prueba)</option>
+            Sistema de Aleatorización
+            <select id="randomizationModeSelect">
+              <option value="deck" selected>Mazos (Balanceado - Den Ouden)</option>
+              <option value="random">Ensayo a ensayo (Clásico)</option>
             </select>
           </label>
           <label>
@@ -666,11 +666,6 @@
 
     <!-- ⭐ GRUPO COMPLETO: TAREA + CONTADOR SEPARADO -->
     <div class="task-feedback-group">
-      <!-- INSTRUCCIÓN DE PRÁCTICA -->
-      <div id="practice-header" style="display: none; text-align: center; margin-bottom: 15px;">
-        <h3 style="color: var(--accent); margin: 0 0 10px 0;">Bloque de práctica:</h3>
-        <p id="practice-instruction" style="color: var(--text-secondary); font-size: 14px; margin: 0;"></p>
-      </div>
       
       <!-- CONTENEDOR CON ALTURA FIJA PARA CRUZ Y ESTÍMULOS -->
       <div id="task-area">
@@ -1730,14 +1725,11 @@
     // --- Variables de Probabilidad de Feedback ---
     let feedbackProbability = 0.7;          // Probabilidad de feedback veraz (70% por defecto)
     
-    // --- Variables para Bloque de Práctica ---
-    let isPracticeMode = true;              // Flag de modo práctica
-    let practiceTrialCount = 0;             // Contador de ensayos de práctica
-    const MAX_PRACTICE_TRIALS = 10;         // Número de ensayos de práctica
-    let practiceCorrectStimulus = 'A';      // Primera práctica siempre A
-    let practiceSequence = [];              // Secuencia predeterminada de feedback para práctica
-    let practiceInstruction = '';           // Instrucción actual mostrada en práctica
-    let practiceVerificationActive = false; // Si está activa verificación en práctica
+    // --- Variables para Deck Manager (Den Ouden Style) ---
+    let deckManager = null;                 // Instancia del DeckManager
+    let randomizationMode = 'deck';         // Modo de aleatorización: 'deck' o 'random'
+    let isFirstTrial = true;                // Flag para el primer trial de la tarea
+    let justReversed = false;               // Flag para el primer trial después de reversión
 
     // --- Urnas de Feedback (Sistema Determinístico Balanceado) ---
     // Se mantienen urnas separadas para elecciones correctas e incorrectas
@@ -1774,7 +1766,76 @@
     });
 
 // ========================================================================
-// SECCIÓN 3: FUNCIONES DE GENERACIÓN DE URNAS DE FEEDBACK
+// SECCIÓN 3: DECKMANAGER CLASS FOR DEN OUDEN STYLE RANDOMIZATION
+// ========================================================================
+// Implements 10-card deck system with constraints to prevent misleading patterns
+
+class DeckManager {
+  constructor() {
+    this.decks = { left: [], right: [] };
+  }
+
+  generateDeck(prob) {
+    const size = 10;
+    const wins = Math.round(prob * size);
+    const losses = size - wins;
+    let deck = Array(wins).fill(1).concat(Array(losses).fill(0));
+    
+    // Shuffle and ensure max 3 consecutive
+    let valid = false;
+    while (!valid) {
+      this.shuffle(deck);
+      valid = !this.hasMoreThanThreeConsecutive(deck);
+    }
+    return deck;
+  }
+
+  shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  hasMoreThanThreeConsecutive(arr) {
+    for (let i = 3; i < arr.length; i++) {
+      if (arr[i] === arr[i-1] && arr[i] === arr[i-2] && arr[i] === arr[i-3]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  resetDecks() {
+    this.decks.left = [];
+    this.decks.right = [];
+  }
+
+  getFeedback(side, prob, forceCongruent) {
+    if (this.decks[side].length === 0) {
+      this.decks[side] = this.generateDeck(prob);
+    }
+
+    if (forceCongruent) {
+      // High prob (>0.5) should win (1), Low prob (<0.5) should lose (0)
+      const expected = prob > 0.5 ? 1 : 0;
+      // Try to find expected in deck
+      const idx = this.decks[side].indexOf(expected);
+      if (idx !== -1) {
+        this.decks[side].splice(idx, 1);
+        return expected;
+      } else {
+        // Fallback: regenerate deck and use first matching card
+        this.decks[side] = this.generateDeck(prob);
+        return expected;
+      }
+    }
+    return this.decks[side].shift();
+  }
+}
+
+// ========================================================================
+// SECCIÓN 4: FUNCIONES DE GENERACIÓN DE URNAS DE FEEDBACK
 // ========================================================================
 // Sistema determinístico para asegurar proporciones exactas de feedback
 // veraz vs. engañoso, manteniendo urnas separadas por corrección de respuesta.
@@ -1872,201 +1933,22 @@
         return giveTruthful ? trueCorrect : !trueCorrect;
       }
 
+
         //final FUNCIÓN DE URNA - BALANCEADA POR ESTÍMULO (CORRECTO/INCORRECTO)
 
-        // PRÁCTICA: 10 secuencias pseudo-aleatorias para A (7 premios/10) y B (3 premios/10)
-        // Total 10 sequences para mantener proporción ~70/30
-        const PRACTICE_SEQUENCES_A = [
-          [1, 1, 1, 0, 1, 1, 0, 1, 1, 0], // seq 1: 7/10
-          [1, 1, 0, 1, 1, 1, 0, 1, 0, 1], // seq 2: 7/10
-          [1, 0, 1, 1, 1, 0, 1, 1, 0, 1], // seq 3: 7/10
-          [1, 1, 1, 1, 0, 1, 0, 1, 0, 1], // seq 4: 7/10
-          [0, 1, 1, 1, 1, 0, 1, 1, 0, 1], // seq 5: 7/10
-          [1, 1, 0, 1, 1, 1, 1, 0, 1, 0], // seq 6: 7/10
-          [1, 0, 1, 1, 0, 1, 1, 1, 1, 0], // seq 7: 7/10
-          [1, 1, 1, 0, 1, 0, 1, 1, 1, 0], // seq 8: 7/10
-          [0, 1, 1, 1, 0, 1, 1, 1, 0, 1], // seq 9: 7/10
-          [1, 1, 1, 1, 0, 1, 1, 0, 0, 1]  // seq 10: 7/10
-        ];
-        
-        const PRACTICE_SEQUENCES_B = [
-          [0, 0, 0, 1, 0, 0, 1, 0, 0, 1], // seq 1: 3/10
-          [0, 0, 1, 0, 0, 0, 1, 0, 1, 0], // seq 2: 3/10
-          [0, 1, 0, 0, 0, 1, 0, 0, 1, 0], // seq 3: 3/10
-          [0, 0, 0, 0, 1, 0, 1, 0, 1, 0], // seq 4: 3/10
-          [1, 0, 0, 0, 0, 1, 0, 0, 1, 0], // seq 5: 3/10
-          [0, 0, 1, 0, 0, 0, 0, 1, 0, 1], // seq 6: 3/10
-          [0, 1, 0, 0, 1, 0, 0, 0, 0, 1], // seq 7: 3/10
-          [0, 0, 0, 1, 0, 1, 0, 0, 0, 1], // seq 8: 3/10
-          [1, 0, 0, 0, 1, 0, 0, 0, 1, 0], // seq 9: 3/10
-          [0, 0, 0, 0, 1, 0, 0, 1, 1, 0]  // seq 10: 3/10
-        ];
-        
-        // Seleccionar una secuencia aleatoria al inicio
-        let selectedPracticeSeqIdx = Math.floor(Math.random() * PRACTICE_SEQUENCES_A.length);
-        const PRACTICE_SEQ_A = PRACTICE_SEQUENCES_A[selectedPracticeSeqIdx];
-        const PRACTICE_SEQ_B = PRACTICE_SEQUENCES_B[selectedPracticeSeqIdx];
-
-
-    // === FUNCIONES PARA BLOQUE DE PRÁCTICA ===
-    function initializePracticeSequence() {
-      // Secuencia: [true, true, true, false, true]
-      // Esto significa: correcto da verde, correcto da verde, correcto da verde, correcto da rojo (misleading), correcto da verde
-
-      //esta es la definiciónanterior, la dejo por si se usa en e´codigo para no romperlo
-      practiceSequence = [true, true, true, false, true];
-      practiceCorrectStimulus = 'A'; // Siempre A es correcto en práctica
-    }
-
-    
-
-    function updatePracticeInstruction() {
-      const instructionP = document.getElementById('practice-instruction');
-      if (practiceTrialCount === 0) {
-        instructionP.textContent = 'Elige un genio';
-      } else if (practiceTrialCount === 5) {
-        instructionP.textContent = 'Recuerda: el "bueno" a veces quita dinero y el "malo" a veces da dinero';
-      }
-    }
-
-    function handlePracticeChoice(choice) {
-
-
-      //lógica test
-            // --- Verificación post-práctica: usar mismos estímulos y la misma entrada (teclado/click) ---
-      if (practiceVerificationActive === true) {
-        responseBlocked = true;
-        clearTimeout(stimulusTimeoutId);
-      
-        const acertada = (choice === practiceCorrectStimulus);  // en práctica, 'A' es la "buena"
-        if (acertada) {
-          // Mensaje y habilitar SPACE para empezar (reutiliza la lógica ya existente en checkKey)
-          const header = document.getElementById('practice-header');
-          header.style.display = 'block';
-          document.getElementById('practice-instruction').innerHTML =
-            '<div style="font-size: 1.1rem; line-height: 1.8; text-align: center;">' +
-            '<strong>Recuerda:</strong><br>' +
-			'- Intenta ganar el máximo dinero posible. <br>' +
-            '- Uno de los genios da dinero con más frecuencia que el otro.<br>' +
-            '- Durante la prueba puede cambiar cual sin avisar. <br>' +
-            '<div style="font-size: 1.4rem; margin-top: 15px;"><strong>Pulsa ESPACIO para empezar la prueba cuando estés listo</strong></div>' +
-            '</div>';
-      
-          // Oculta feedback/estímulos (o déjalos, como prefieras visualmente)
-          setStimuliVisible(false);
-          feedbackDiv.style.display = 'none';
-      
-          // Clave: esto hace que tu checkKey permita SPACE → startMainTask()
-          practiceTrialCount = MAX_PRACTICE_TRIALS;
-          responseBlocked = false;  // permite pulsar espacio
-        } else {
-          // Mensaje frío y reinicio de la práctica
-          const header = document.getElementById('practice-header');
-          header.style.display = 'block';
-          document.getElementById('practice-instruction').innerHTML =
-            '<strong>Respuesta incorrecta.</strong> Repetimos la práctica.';
-      
-          practiceVerificationActive = false;
-          practiceTrialCount = 0;
-      
-          setTimeout(() => {
-            updatePracticeInstruction();   // tu función
-            showFixationCross();           // relanza la práctica con el mismo flujo
-          }, 600);
-        }
-        return;  // Importantísimo: no seguimos con la lógica de ensayo de práctica
-      }
-      //final lógica test
-
-
-
-
-      
-      if (responseBlocked) return;
-      
-      responseBlocked = true;
-      clearTimeout(stimulusTimeoutId);
-      
-      const reactionTime = Date.now() - trialStartTime;
-      const isCorrect = (choice === practiceCorrectStimulus);
-      
-
-     // PRÁCTICA: pseudoaleatorización fija por opción (10 trials con proporciones 7/10 y 3/10)
-      let feedbackCorrect;
-      {
-        const idx = Math.min(practiceTrialCount, 9); // 0..9
-        // 'choice' es 'A' o 'B' en tu código actual; si fuese distinto, mapea aquí.
-        const fb = (choice === 'A') ? PRACTICE_SEQ_A[idx] : PRACTICE_SEQ_B[idx];
-        feedbackCorrect = (fb === 1);
-        // console.log(`[PRACTICE] t=${idx+1} choice=${choice} → fb=${fb}`);
-      }
-
-      
-      triggerSelectionAnimation(choice);
-      
-      setTimeout(() => {
-        showFeedback(feedbackCorrect);
-        
-        setTimeout(() => {
-          practiceTrialCount++;
-          
-          // Actualizar instrucción si es necesario
-          if (practiceTrialCount === 5) {
-            updatePracticeInstruction();
-          }
-          
-          if (practiceTrialCount >= MAX_PRACTICE_TRIALS) {
-            // Finalizar práctica
-            endPracticeBlock();
-          } else {
-            updatePracticeInstruction();
-            showFixationCross();
-          }
-        }, FEEDBACK_MS);
-      }, SELECTION_ANIMATION_MS);
-    }
-
-
-//FINAL DE LA PRÁCTICA
-
-    
-function endPracticeBlock() {
-  // Activar verificación con los mismos estímulos visibles
-  practiceVerificationActive = true;
-
-  const header = document.getElementById('practice-header');
-  header.style.display = 'block';
-  document.getElementById('practice-instruction').innerHTML =
-    '<strong style="font-size: 1.2rem;">Elige cuál crees que daba más premios para comprobar que has entendido la prueba (puedes consultar ahora las dudas que tengas)</strong>';
-
-  // Mostrar los mismos estímulos (ya están en pantalla o estaban ocultos); permitir respuesta
-  stimuliDiv.style.display = 'block';
-  feedbackDiv.style.display = 'none';
-  responseBlocked = false;  // ahora puede elegir A/B con teclado (y con click, si ya lo tienes)
-}
-
-
-
-    //INICIAR TAREA
-    
-// ========================================================================
-// SECCIÓN 6: LÓGICA PRINCIPAL DE LA TAREA
-// ========================================================================
-// Funciones que controlan el flujo principal de la tarea: inicio, 
-// presentación de estímulos, procesamiento de respuestas y reversiones.
+    // ========================================================================
+    // SECCIÓN 6: LÓGICA PRINCIPAL DE LA TAREA
+    // ========================================================================
+    // Funciones que controlan el flujo principal de la tarea: inicio, 
+    // presentación de estímulos, procesamiento de respuestas y reversiones.
 
     /**
-     * Inicia la tarea principal tras completar la práctica.
-     * Genera los estímulos reales según la configuración y muestra la primera cruz de fijación.
+     * Inicia la tarea principal.
+     * Genera los estímulos según la configuración y muestra la primera cruz de fijación.
      */
     function startMainTask() {
-      isPracticeMode = false;
-      practiceTrialCount = 0;
       
-      // Ocultar header de práctica
-      document.getElementById('practice-header').style.display = 'none';
-      
-      // Generar estímulos reales (no de práctica)
+      // Generar estímulos reales
       const stimulusType = document.getElementById('stimulusTypeSelect').value;
       if (stimulusType === 'genios') {
         stimuliDiv.innerHTML = `
@@ -2521,6 +2403,12 @@ function endPracticeBlock() {
             reversalPhase = true;
           }
           
+          // Reset decks on reversal if using deck mode
+          if (randomizationMode === 'deck' && deckManager) {
+            deckManager.resetDecks();
+            justReversed = true; // Mark that we just reversed
+          }
+          
           console.log(`🔄 Reversión en trial ${currentTrialNumber} | Bloque: ${reversalBlock} ${reversalMode === 'criterion' ? `| Rev#${reversalCount}` : ''}`);
         }
         // ========================================================================
@@ -2528,7 +2416,45 @@ function endPracticeBlock() {
         const rt = Date.now() - trialStartTime;
         const trueCorrect = (choice === correctStimulus);
         
-        const feedbackCorrect = drawFromUrn(trueCorrect);
+        // Generate feedback based on randomization mode
+        let feedbackCorrect;
+        if (randomizationMode === 'deck' && deckManager) {
+          // Deck mode: use DeckManager
+          // Determine if we need to force congruent feedback (first trial or just reversed)
+          const forceCongruent = isFirstTrial || justReversed;
+          
+          // Determine side based on choice
+          const side = choice === 'A' ? 'left' : 'right';
+          
+          // Determine probability for this choice
+          const prob = trueCorrect ? feedbackProbability : (1 - feedbackProbability);
+          
+          // Get feedback from deck
+          const deckFeedback = deckManager.getFeedback(side, prob, forceCongruent);
+          
+          // deckFeedback is 1 for win, 0 for loss
+          // If choice is correct and deckFeedback is 1, or choice is incorrect and deckFeedback is 0
+          // then feedback is "truthful" (congruent)
+          // We need to translate this to feedbackCorrect (positive/negative outcome)
+          if (trueCorrect) {
+            // If choice is correct, deckFeedback=1 means positive, 0 means negative
+            feedbackCorrect = deckFeedback === 1;
+          } else {
+            // If choice is incorrect, deckFeedback=0 means negative, 1 means positive (misleading)
+            feedbackCorrect = deckFeedback === 1;
+          }
+          
+          // Reset flags after first trial
+          if (isFirstTrial) {
+            isFirstTrial = false;
+          }
+          if (justReversed) {
+            justReversed = false;
+          }
+        } else {
+          // Random mode (classic): use existing urn system
+          feedbackCorrect = drawFromUrn(trueCorrect);
+        }
 
         coins += feedbackCorrect ? 5 : -5;
 
@@ -2545,30 +2471,13 @@ function endPracticeBlock() {
     }
 
     function checkKey(e) {
-      // Manejo especial para tecla espacio al final de la práctica
-      if (e.key === " " || e.key === "Spacebar") {
-        if (practiceTrialCount >= MAX_PRACTICE_TRIALS && isPracticeMode) {
-          e.preventDefault();
-          startMainTask();
-          return;
-        }
-      }
-      
       if (responseBlocked) return;
       if (stimuliDiv.style.display === "none") return;
       
       if (e.key.toLowerCase() === "a" || e.key === "ArrowLeft") {
-        if (isPracticeMode) {
-          handlePracticeChoice('A');
-        } else {
-          processChoice('A');
-        }
+        processChoice('A');
       } else if (e.key.toLowerCase() === "l" || e.key === "ArrowRight") {
-        if (isPracticeMode) {
-          handlePracticeChoice('B');
-        } else {
-          processChoice('B');
-        }
+        processChoice('B');
       }
     }
 
@@ -4525,8 +4434,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         const choice = x < rect.width / 2 ? 'A' : 'B';
         __lastStimulusPointerAt = Date.now();
         e.preventDefault();
-        if (isPracticeMode) handlePracticeChoice(choice);
-        else processChoice(choice);
+        processChoice(choice);
         return;
       }
 
@@ -4536,8 +4444,7 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       const choice = stim.id;
       __lastStimulusPointerAt = Date.now();
       e.preventDefault();
-      if (isPracticeMode) handlePracticeChoice(choice);
-      else processChoice(choice);
+      processChoice(choice);
     }, { passive: false });
 
     // Click fallback (evita doble disparo tras touch)
@@ -4553,16 +4460,14 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
         const rect = lakeStimulus.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const choice = x < rect.width / 2 ? 'A' : 'B';
-        if (isPracticeMode) handlePracticeChoice(choice);
-        else processChoice(choice);
+        processChoice(choice);
         return;
       }
 
       const stim = e.target.closest('#A, #B');
       if (!stim) return;
       const choice = stim.id;
-      if (isPracticeMode) handlePracticeChoice(choice);
-      else processChoice(choice);
+      processChoice(choice);
     });
     
     startBtn.addEventListener('click', () => {
@@ -4647,90 +4552,52 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       correctChoicesInBlock = new Set();  // Limpiar registro de elecciones correctas
       isFirstReversalTrial = false;   // Legacy flag
 
-      // Comprobar si se debe ejecutar el bloque de práctica
-      const shouldDoPractice = document.getElementById('practiceBlockSelect').value === 'yes';
-      
-      // Inicializar práctica si está habilitada
-      if (shouldDoPractice) {
-        isPracticeMode = true;
-        practiceTrialCount = 0;
-        initializePracticeSequence();
-
-        // ⭐ GENERAR ESTÍMULOS DE PRÁCTICA SIMPLIFICADOS
-        const stimulusType = document.getElementById('stimulusTypeSelect').value;
-        if (stimulusType === 'genios') {
-          // Para genios, usar emojis estándar en práctica
-          stimuliDiv.innerHTML = `
-            <div class="stimulus" id="A">
-              ${createPracticeMachine('A', 150)}
-            </div>
-            <div class="stimulus" id="B">
-              ${createPracticeMachine('B', 150)}
-            </div>
-          `;
-        } else if (stimulusType === 'peces') {
-          // Para peces, usar el mismo lago en práctica y tarea principal
-          stimuliDiv.innerHTML = `
-            <div class="lake-stimulus" id="lake-stimulus" data-stimulus-type="peces">
-              ${createLakeStimulus(512, false, null)}
-            </div>
-          `;
-        } else {
-          // Fallback a emojis
-          stimuliDiv.innerHTML = `
-            <div class="stimulus" id="A">
-              ${createPracticeMachine('A', 150)}
-            </div>
-            <div class="stimulus" id="B">
-              ${createPracticeMachine('B', 150)}
-            </div>
-          `;
-        }
+      // ⭐ INITIALIZE DECK MANAGER AND RANDOMIZATION MODE
+      randomizationMode = document.getElementById('randomizationModeSelect').value || 'deck';
+      if (randomizationMode === 'deck') {
+        deckManager = new DeckManager();
+        console.log('🎴 Deck Manager initialized (Den Ouden style)');
       } else {
-        // Saltar práctica y generar estímulos de prueba directamente
-        isPracticeMode = false;
-        practiceTrialCount = 0;
-        
-        const stimulusType = document.getElementById('stimulusTypeSelect').value;
-        if (stimulusType === 'genios') {
-          stimuliDiv.innerHTML = `
-            <div class="stimulus" id="A">
-              ${createGeniusStimulus('A', true, 150)}
-            </div>
-            <div class="stimulus" id="B">
-              ${createGeniusStimulus('B', true, 150)}
-            </div>
-          `;
-        } else if (stimulusType === 'peces') {
-          stimuliDiv.innerHTML = `
-            <div class="lake-stimulus" id="lake-stimulus" data-stimulus-type="peces">
-              ${createLakeStimulus(512, false, null)}
-            </div>
-          `;
-        } else {
-          stimuliDiv.innerHTML = `
-            <div class="stimulus" id="A">
-              ${createGeniusStimulus('A', true, 150)}
-            </div>
-            <div class="stimulus" id="B">
-              ${createGeniusStimulus('B', true, 150)}
-            </div>
-          `;
-        }
+        deckManager = null;
+        console.log('🎲 Using classic random mode');
+      }
+      
+      // Initialize first trial flags
+      isFirstTrial = true;
+      justReversed = false;
+
+      // Generate stimuli directly (no practice block)
+      const stimulusType = document.getElementById('stimulusTypeSelect').value;
+      if (stimulusType === 'genios') {
+        stimuliDiv.innerHTML = `
+          <div class="stimulus" id="A">
+            ${createGeniusStimulus('A', true, 150)}
+          </div>
+          <div class="stimulus" id="B">
+            ${createGeniusStimulus('B', true, 150)}
+          </div>
+        `;
+      } else if (stimulusType === 'peces') {
+        stimuliDiv.innerHTML = `
+          <div class="lake-stimulus" id="lake-stimulus" data-stimulus-type="peces">
+            ${createLakeStimulus(512, false, null)}
+          </div>
+        `;
+      } else {
+        stimuliDiv.innerHTML = `
+          <div class="stimulus" id="A">
+            ${createGeniusStimulus('A', true, 150)}
+          </div>
+          <div class="stimulus" id="B">
+            ${createGeniusStimulus('B', true, 150)}
+          </div>
+        `;
       }
 
       // Mostrar interfaz de tarea y ocultar título
       instructions.style.display = 'none';
       startBtn.style.display = 'none';
       document.getElementById('main-title').classList.add('hidden-during-task');
-
-      // Mostrar header de práctica y primera instrucción solo si está en modo práctica
-      if (shouldDoPractice) {
-        document.getElementById('practice-header').style.display = 'block';
-        updatePracticeInstruction();
-      } else {
-        document.getElementById('practice-header').style.display = 'none';
-      }
 
       showFixationCross();
     });
