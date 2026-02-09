@@ -1041,16 +1041,19 @@
     // --- Variables de Probabilidad de Feedback ---
     let feedbackProbability = 0.7;          // Probabilidad de feedback veraz (70% por defecto)
     
-    // --- Variables para Randomization Method ---
+    // --- Variables para Randomization Method (NEW: Den Ouden Implementation) ---
+    // NOTE: Two distinct randomization variables:
+    // 1. randomizationMethod: Determines feedback generation algorithm ('pure' = traditional urn, 'pseudo' = Den Ouden deck)
+    // 2. randomizationMode: Determines deck system type ('deck' = DeckManager, 'random' = classic per-trial)
     let randomizationMethod = 'pure';       // Método de aleatorización: 'pure' (urn-based) o 'pseudo' (Den Ouden deck)
     
     // --- Variables para Den Ouden Decks (Pseudo-randomization) ---
     let denOudenDeckCorrect = [];           // Deck pre-generado para respuestas correctas
     let denOudenDeckIncorrect = [];         // Deck pre-generado para respuestas incorrectas
     
-    // --- Variables para Deck Manager (Den Ouden Style) ---
+    // --- Variables para Deck Manager (Original Den Ouden Style DeckManager) ---
     let deckManager = null;                 // Instancia del DeckManager
-    let randomizationMode = 'deck';         // Modo de aleatorización: 'deck' o 'random'
+    let randomizationMode = 'deck';         // Modo de aleatorización: 'deck' (DeckManager) o 'random' (classic)
     let isFirstTrial = true;                // Flag para el primer trial de la tarea
     let justReversed = false;               // Flag para el primer trial después de reversión
 
@@ -2196,6 +2199,8 @@ class DeckManager {
 
 
 // === DIAGNÓSTICO: Imprimir primeros 10 trials ===
+// (Debug code - uncomment if needed for troubleshooting)
+/*
 console.log("=== DIAGNÓSTICO HTML ===");
 console.log("Total valid trials:", validTrials.length);
 console.log("Primeros 10 trials:");
@@ -2208,6 +2213,9 @@ for (let i = 0; i < Math.min(10, validTrials.length); i++) {
 const { choices, rewards_01, rewards_pm1 } = buildChoicesRewards(validTrials);
 console.log("Choices (primeros 10):", choices.slice(0, 10));
 console.log("Rewards_01 (primeros 10):", rewards_01.slice(0, 10));
+*/
+
+const { choices, rewards_01, rewards_pm1 } = buildChoicesRewards(validTrials);
 console.log("Rewards_pm1 (primeros 10):", rewards_pm1.slice(0, 10));
 console.log("======================");
 
@@ -2259,6 +2267,8 @@ function testNllAbManual(alpha, beta, choices, rewards, q0 = 0.5) {
   return nll;
 }
 
+// Test harness for manual debugging (commented out for production)
+/*
 // Ejecutar ANTES de fitAllModels
 const choices_test = [1, 0, 0, 0, 1, 1, 1, 1, 1, 1];
 const rewards_test = [1, 1, 0, 0, 0, 1, 1, 1, 0, 0];
@@ -2270,6 +2280,7 @@ testNllAbManual(0.092, 15.0, choices_test, rewards_test, 0.5);
 console.log("\n" + "=".repeat(60));
 console.log("HTML encontró alpha=0.214:");
 testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
+*/
 
       /// FIN DEL DEBUG
 
