@@ -1851,7 +1851,7 @@ class DeckManager {
  */
 function generateDenOudenDeck(probability, forceFirstVeridical = false) {
   const deckSize = 10;
-  const numTrue = Math.round(probability * deckSize);
+  const numTrue = Math.floor(probability * deckSize);
   const numFalse = deckSize - numTrue;
   
   let deck = [];
@@ -2500,22 +2500,17 @@ function generateDenOudenDeck(probability, forceFirstVeridical = false) {
         let feedbackCorrect;
         if (randomizationMode === 'deck') {
           // Den Ouden Deck mode: use deckCorrect or deckIncorrect
-          // Choose the appropriate deck based on whether choice was correct
-          const deck = trueCorrect ? deckCorrect : deckIncorrect;
-          
           // If deck is empty, regenerate with forceFirstVeridical=false (just a refill)
-          if (deck.length === 0) {
-            const newDeck = generateDenOudenDeck(feedbackProbability, false);
-            if (trueCorrect) {
-              deckCorrect = newDeck;
-            } else {
-              deckIncorrect = newDeck;
-            }
-            console.log(`🔄 Refilling ${trueCorrect ? 'correct' : 'incorrect'} deck:`, newDeck);
+          if (trueCorrect && deckCorrect.length === 0) {
+            deckCorrect = generateDenOudenDeck(feedbackProbability, false);
+            console.log(`🔄 Refilling correct deck:`, deckCorrect);
+          } else if (!trueCorrect && deckIncorrect.length === 0) {
+            deckIncorrect = generateDenOudenDeck(feedbackProbability, false);
+            console.log(`🔄 Refilling incorrect deck:`, deckIncorrect);
           }
           
-          // Pop from the appropriate deck
-          const isVeridical = trueCorrect ? deckCorrect.pop() : deckIncorrect.pop();
+          // Shift from the appropriate deck (removes from beginning, ensuring first item is used first)
+          const isVeridical = trueCorrect ? deckCorrect.shift() : deckIncorrect.shift();
           
           // isVeridical indicates if feedback should be truthful/honest
           // If isVeridical=true and trueCorrect=true → show positive feedback
