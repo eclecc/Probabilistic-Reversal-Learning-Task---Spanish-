@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test</title>
+</head>
+<body>
+  <h1>Testing task-logic.js</h1>
+  <div id="test-results"></div>
+  <script src="task-logic.js"></script>
+  <script>
+    const resultsDiv = document.getElementById('test-results');
+    
+    // Test 1: Check if functions exist
+    const functions = [
+      'createPracticeMachine',
+      'createLakeStimulus', 
+      'createGeniusStimulus',
+      'generateDenOudenDeck',
+      'getFeedback',
+      'drawFromUrn'
+    ];
+    
+    let allExist = true;
+    functions.forEach(fn => {
+      if (typeof window[fn] === 'undefined') {
+        resultsDiv.innerHTML += `<p style="color:red">❌ ${fn} not found</p>`;
+        allExist = false;
+      } else {
+        resultsDiv.innerHTML += `<p style="color:green">✓ ${fn} exists</p>`;
+      }
+    });
+    
+    // Test 2: Try to generate a Den Ouden deck
+    try {
+      const deck = generateDenOudenDeck(40, 0.7);
+      const truthfulCount = deck.filter(x => x).length;
+      const misleadingCount = deck.filter(x => !x).length;
+      resultsDiv.innerHTML += `<p style="color:green">✓ Generated Den Ouden deck: ${truthfulCount} truthful, ${misleadingCount} misleading (${(truthfulCount/40*100).toFixed(1)}% truthful)</p>`;
+      
+      // Test 3: Check for streaks > 3
+      let maxStreak = 0;
+      let currentStreak = 1;
+      for (let i = 1; i < deck.length; i++) {
+        if (deck[i] === deck[i-1]) {
+          currentStreak++;
+          maxStreak = Math.max(maxStreak, currentStreak);
+        } else {
+          currentStreak = 1;
+        }
+      }
+      
+      if (maxStreak <= 3) {
+        resultsDiv.innerHTML += `<p style="color:green">✓ No streaks > 3 (max streak: ${maxStreak})</p>`;
+      } else {
+        resultsDiv.innerHTML += `<p style="color:red">❌ Streak validation failed (max streak: ${maxStreak})</p>`;
+      }
+    } catch (e) {
+      resultsDiv.innerHTML += `<p style="color:red">❌ Error generating deck: ${e.message}</p>`;
+    }
+    
+    if (allExist) {
+      resultsDiv.innerHTML += '<h2 style="color:green">✓ All tests passed!</h2>';
+    }
+  </script>
+</body>
+</html>
