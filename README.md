@@ -1,9 +1,12 @@
 # Probabilistic-Reversal-Learning-Task---Spanish-
 Draft for a Probabilistic Reversal Learning Task - Spanish - SNOP study 
 
-SNOP: Estudio exploratorio de las alteraciones olfativas en la psicosis: valor pronóstico y  relación con cognición social, síntomas negativos, y autocuidado (Olfaction in Psychosis: Prognostic value and associations with Social cognition, Negative symptoms and self-care). 
-Santiago Latorre Martínez
-Parc Sanitari Sant Joan de Déu
+Proyecto SNOP: 
+Estudio exploratorio de las alteraciones olfativas en la psicosis: valor pronóstico y  relación con cognición social, síntomas negativos, y autocuidado (Olfaction in Psychosis: Prognostic value and associations with Social cognition, Negative symptoms and self-care). 
+
+Santiago Latorre Martínez 
+
+Parc Sanitari Sant Joan de Déu, Sant Boi de Llobregat, Barcelona, Spain. 
 
 
 
