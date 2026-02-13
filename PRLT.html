@@ -619,8 +619,8 @@
           <label>
             Duración del feedback
             <select id="feedbackDurationSelect">
-              <option value="500">Estándar (500ms)</option>
-              <option value="750" selected>Medio (750ms)</option>
+              <option value="500" selected>Estándar (500ms)</option>
+              <option value="750" >Medio (750ms)</option>
               <option value="1000">Lento(1000ms)</option>
               <option value="1500">Muy Lento (1500ms)</option>
             </select>
@@ -644,8 +644,8 @@
           <label>
             Sistema de Aleatorización
             <select id="randomizationModeSelect">
-              <option value="deck" selected>Mazos (Balanceado - Den Ouden)</option>
-              <option value="random">Ensayo a ensayo (Clásico)</option>
+              <option value="deck" selected>Mazos (Pseudoaleatorizado)</option>
+              <option value="random">Ensayo a ensayo (Bernouilli)</option>
             </select>
           </label>
           <label>
@@ -1730,6 +1730,8 @@
     let randomizationMode = 'deck';         // Modo de aleatorización: 'deck' o 'random'
     let isFirstTrial = true;                // Flag para el primer trial de la tarea
     let justReversed = false;               // Flag para el primer trial después de reversión
+    let deckCorrect = [];                   // Deck for correct choices (Den Ouden)
+    let deckIncorrect = [];                 // Deck for incorrect choices (Den Ouden)
 
     // --- Urnas de Feedback (Sistema Determinístico Balanceado) ---
     // Se mantienen urnas separadas para elecciones correctas e incorrectas
@@ -1832,6 +1834,76 @@ class DeckManager {
     }
     return this.decks[side].shift();
   }
+}
+
+// ========================================================================
+// SECCIÓN 3.5: DEN OUDEN DECK GENERATION FUNCTION
+// ========================================================================
+// Generates a deck of 10 items based on probability with constraints:
+// - No more than 3 consecutive identical values
+// - First item is true (veridical) if forceFirstVeridical is true
+
+/**
+ * Generate a Den Ouden style deck with constraints
+ * @param {number} probability - Probability of true (veridical feedback) (0.0 to 1.0)
+ * @param {boolean} forceFirstVeridical - If true, ensures first item is true
+ * @returns {Array<boolean>} Array of 10 boolean values
+ */
+function generateDenOudenDeck(probability, forceFirstVeridical = false) {
+  const deckSize = 10;
+  const numTrue = Math.floor(probability * deckSize);
+  const numFalse = deckSize - numTrue;
+  
+  let deck = [];
+  let attempts = 0;
+  const maxAttempts = 1000;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    deck = [];
+    
+    // Build deck with correct proportions
+    for (let i = 0; i < numTrue; i++) {
+      deck.push(true);
+    }
+    for (let i = 0; i < numFalse; i++) {
+      deck.push(false);
+    }
+    
+    // Shuffle the deck
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+    
+    // Check constraints
+    let hasMoreThan3Consecutive = false;
+    for (let i = 3; i < deck.length; i++) {
+      if (deck[i] === deck[i-1] && deck[i] === deck[i-2] && deck[i] === deck[i-3]) {
+        hasMoreThan3Consecutive = true;
+        break;
+      }
+    }
+    
+    // If forceFirstVeridical, check if first is true
+    const firstOk = !forceFirstVeridical || deck[0] === true;
+    
+    // If both constraints are met, we're done
+    if (!hasMoreThan3Consecutive && firstOk) {
+      break;
+    }
+  }
+  
+  // If we couldn't find a valid deck after maxAttempts, force fix it
+  if (forceFirstVeridical && deck[0] !== true) {
+    // Find first true and swap with position 0
+    const firstTrueIdx = deck.indexOf(true);
+    if (firstTrueIdx !== -1) {
+      [deck[0], deck[firstTrueIdx]] = [deck[firstTrueIdx], deck[0]];
+    }
+  }
+  
+  return deck;
 }
 
 // ========================================================================
@@ -2404,9 +2476,17 @@ class DeckManager {
           }
           
           // Reset decks on reversal if using deck mode
-          if (randomizationMode === 'deck' && deckManager) {
-            deckManager.resetDecks();
+          if (randomizationMode === 'deck') {
+            if (deckManager) {
+              deckManager.resetDecks();
+            }
+            // Reset Den Ouden decks with forceFirstVeridical=true
+            deckCorrect = generateDenOudenDeck(feedbackProbability, true);
+            deckIncorrect = generateDenOudenDeck(feedbackProbability, true);
             justReversed = true; // Mark that we just reversed
+            console.log('🔄 Den Ouden decks reset for reversal phase');
+            console.log('   - deckCorrect:', deckCorrect);
+            console.log('   - deckIncorrect:', deckIncorrect);
           }
           
           console.log(`🔄 Reversión en trial ${currentTrialNumber} | Bloque: ${reversalBlock} ${reversalMode === 'criterion' ? `| Rev#${reversalCount}` : ''}`);
@@ -2418,39 +2498,26 @@ class DeckManager {
         
         // Generate feedback based on randomization mode
         let feedbackCorrect;
-        if (randomizationMode === 'deck' && deckManager) {
-          // Deck mode: use DeckManager
-          // Determine if we need to force congruent feedback (first trial or just reversed)
-          const forceCongruent = isFirstTrial || justReversed;
-          
-          // Determine side based on choice
-          const side = choice === 'A' ? 'left' : 'right';
-          
-          // Determine probability for this choice
-          const prob = trueCorrect ? feedbackProbability : (1 - feedbackProbability);
-          
-          // Get feedback from deck
-          const deckFeedback = deckManager.getFeedback(side, prob, forceCongruent);
-          
-          // deckFeedback is 1 for win, 0 for loss
-          // If choice is correct and deckFeedback is 1, or choice is incorrect and deckFeedback is 0
-          // then feedback is "truthful" (congruent)
-          // We need to translate this to feedbackCorrect (positive/negative outcome)
-          if (trueCorrect) {
-            // If choice is correct, deckFeedback=1 means positive, 0 means negative
-            feedbackCorrect = deckFeedback === 1;
-          } else {
-            // If choice is incorrect, deckFeedback=0 means negative, 1 means positive (misleading)
-            feedbackCorrect = deckFeedback === 1;
+        if (randomizationMode === 'deck') {
+          // Den Ouden Deck mode: use deckCorrect or deckIncorrect
+          // If deck is empty, regenerate with forceFirstVeridical=false (just a refill)
+          if (trueCorrect && deckCorrect.length === 0) {
+            deckCorrect = generateDenOudenDeck(feedbackProbability, false);
+            console.log(`🔄 Refilling correct deck:`, deckCorrect);
+          } else if (!trueCorrect && deckIncorrect.length === 0) {
+            deckIncorrect = generateDenOudenDeck(feedbackProbability, false);
+            console.log(`🔄 Refilling incorrect deck:`, deckIncorrect);
           }
           
-          // Reset flags after first trial
-          if (isFirstTrial) {
-            isFirstTrial = false;
-          }
-          if (justReversed) {
-            justReversed = false;
-          }
+          // Shift from the appropriate deck (removes from beginning, ensuring first item is used first)
+          const isVeridical = trueCorrect ? deckCorrect.shift() : deckIncorrect.shift();
+          
+          // isVeridical indicates if feedback should be truthful/honest
+          // If isVeridical=true and trueCorrect=true → show positive feedback
+          // If isVeridical=true and trueCorrect=false → show negative feedback
+          // If isVeridical=false → invert the feedback (misleading)
+          feedbackCorrect = isVeridical ? trueCorrect : !trueCorrect;
+          
         } else {
           // Random mode (classic): use existing urn system
           feedbackCorrect = drawFromUrn(trueCorrect);
@@ -4556,9 +4623,16 @@ testNllAbManual(0.214, 15.0, choices_test, rewards_test, 0.5);
       randomizationMode = document.getElementById('randomizationModeSelect').value || 'deck';
       if (randomizationMode === 'deck') {
         deckManager = new DeckManager();
-        console.log('🎴 Deck Manager initialized (Den Ouden style)');
+        // Initialize Den Ouden decks with forceFirstVeridical=true for first phase
+        deckCorrect = generateDenOudenDeck(feedbackProbability, true);
+        deckIncorrect = generateDenOudenDeck(feedbackProbability, true);
+        console.log('🎴 Den Ouden Decks initialized');
+        console.log('   - deckCorrect:', deckCorrect);
+        console.log('   - deckIncorrect:', deckIncorrect);
       } else {
         deckManager = null;
+        deckCorrect = [];
+        deckIncorrect = [];
         console.log('🎲 Using classic random mode');
       }
       
