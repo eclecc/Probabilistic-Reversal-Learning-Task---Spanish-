@@ -43,18 +43,6 @@
       font-feature-settings:"tnum" 1;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     }
-    .lamp{
-      width:12px;height:12px;border-radius:50%;
-      background:rgba(74,163,255,.14);
-      border:1px solid rgba(74,163,255,.35);
-      box-shadow:none;
-      flex:0 0 auto;
-    }
-    .lamp.on{
-      background:var(--blue);
-      border-color:rgba(74,163,255,.95);
-      box-shadow:0 0 18px rgba(74,163,255,.75);
-    }
 
     main{
       flex:1;
@@ -92,7 +80,7 @@
     .block.flash{ background:var(--flash); }
     .block.tapped{ background:var(--tap); }
 
-    /* Overlay centrado (Siguiente, FIN, etc.) */
+    /* Overlay para "SIGUIENTE" */
     #overlay{
       position:absolute;
       inset:0;
@@ -107,8 +95,29 @@
       font-weight:900;
       font-size: clamp(22px, 5vw, 44px);
       letter-spacing:.6px;
+      z-index:20;
     }
     #overlay.show{ display:flex; }
+
+    /* Luz azul DENTRO del tablero (arriba-derecha) */
+    #lampInBoard{
+      position:absolute;
+      top:12px;
+      right:12px;
+      width:22px;
+      height:22px;
+      border-radius:50%;
+      background:rgba(74,163,255,.14);
+      border:2px solid rgba(74,163,255,.45);
+      box-shadow:none;
+      z-index:30;
+      pointer-events:none;
+    }
+    #lampInBoard.on{
+      background:var(--blue);
+      border-color:rgba(74,163,255,.95);
+      box-shadow:0 0 22px rgba(74,163,255,.75);
+    }
 
     .panel{
       width:min(96vw, 760px);
@@ -128,8 +137,11 @@
     }
     button:disabled{opacity:.45}
     .hint{
-      font-size:12px;color:var(--muted);line-height:1.25;
-      max-width:70ch;
+      width:min(96vw, 760px);
+      font-size:12.5px;
+      color:var(--muted);
+      line-height:1.25;
+      padding:2px 2px 0 2px;
     }
   </style>
 </head>
@@ -139,19 +151,22 @@
     <div class="title">eCorsi – forward (secuencia fija)</div>
     <div class="status" id="statusLine">Ensayo: – | Span actual: –</div>
   </div>
-  <div class="lamp" id="lamp" title="Luz azul: puedes responder"></div>
 </header>
 
 <main>
   <div id="boardWrap" aria-label="Tablero eCorsi">
     <div id="boardInner"></div>
     <div id="overlay"></div>
+    <div id="lampInBoard" title="Luz azul: puedes responder"></div>
   </div>
 
   <div class="panel">
     <button id="btnStart">Empezar</button>
     <button id="btnReset">Reset</button>
-    <div class="hint" id="hint">Observa la secuencia y luego toca los bloques en el mismo orden.</div>
+  </div>
+
+  <div class="hint" id="hint">
+    Observa la secuencia y luego toca los bloques en el mismo orden.
   </div>
 </main>
 
@@ -162,17 +177,15 @@
   const IOI_MS = 1000;
 
   // --- Buffers / pauses ---
-  // Pausa tras responder antes de mostrar "Siguiente" (para evitar doble tap residual)
-  const POST_RESPONSE_BUFFER_MS = 250;
-  // Tiempo que permanece "Siguiente" en pantalla antes del inicio del próximo ensayo (lo que pides)
-  const NEXT_OVERLAY_MS = 1200;
+  const POST_RESPONSE_BUFFER_MS = 250; // evita taps residuales
+  const NEXT_OVERLAY_MS = 1200;        // “SIGUIENTE” antes del inicio del próximo ensayo
 
   // --- Layout lógico (datasheet) ---
   const CANVAS_W = 1020;
   const CANVAS_H = 820;
   const BLOCK_SIZE = 120;
 
-  // Coordenadas finales del datasheet (vista del sujeto). IDs 1..9
+  // Coordenadas finales (vista del sujeto). IDs 1..9
   const BLOCKS = [
     {id:1, x:353, y:574},
     {id:2, x:753, y:534},
@@ -205,19 +218,18 @@
   const boardWrap = document.getElementById('boardWrap');
   const boardInner = document.getElementById('boardInner');
   const overlay = document.getElementById('overlay');
+  const lampInBoard = document.getElementById('lampInBoard');
 
   const btnStart = document.getElementById('btnStart');
   const btnReset = document.getElementById('btnReset');
   const statusLine = document.getElementById('statusLine');
-  const lamp = document.getElementById('lamp');
   const hint = document.getElementById('hint');
 
   // --- Estado ---
   let blockEls = [];
   let running = false;
 
-  // state machine
-  // "idle" | "presenting" | "responding" | "between" | "finished"
+  // state machine: "idle" | "presenting" | "responding" | "between" | "finished"
   let state = "idle";
 
   let curLen = MIN_LEN;
@@ -234,7 +246,7 @@
   // --- Helpers ---
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  function setLamp(on){ lamp.classList.toggle('on', !!on); }
+  function setLamp(on){ lampInBoard.classList.toggle('on', !!on); }
 
   function showOverlay(text){
     overlay.textContent = text;
@@ -284,7 +296,6 @@
       const el = document.createElement('div');
       el.className = "block";
       el.dataset.idx = String(idx);
-      // pointerup suele ser más estable en móvil para tareas de tapping
       el.addEventListener('pointerup', onTap);
       boardInner.appendChild(el);
       return el;
@@ -314,7 +325,7 @@
   const ro = new ResizeObserver(layoutBlocks);
   ro.observe(boardWrap);
 
-  // --- Presentación (flash) ---
+  // --- Presentación ---
   async function presentSequence(seqIdx){
     state = "presenting";
     setLamp(false);
@@ -331,7 +342,6 @@
       if (k < seqIdx.length - 1) await sleep(gap);
     }
 
-    // luz azul: puede responder
     setLamp(true);
     state = "responding";
     respSeqIdx = [];
@@ -344,7 +354,6 @@
     const idx = Number(e.currentTarget.dataset.idx);
     respSeqIdx.push(idx);
 
-    // confirmación breve del toque (no queda marcado)
     const el = e.currentTarget;
     el.classList.add('tapped');
     setTimeout(() => el.classList.remove('tapped'), 120);
@@ -356,7 +365,6 @@
     }
   }
 
-  // --- Entre ensayos: mostrar "Siguiente" SIEMPRE ---
   async function showNextAndContinue(){
     showOverlay("SIGUIENTE");
     await sleep(NEXT_OVERLAY_MS);
@@ -373,13 +381,9 @@
     }
     setStatus();
 
-    // buffer corto post-respuesta
     await sleep(POST_RESPONSE_BUFFER_MS);
-
-    // mensaje “Siguiente” con pausa (lo que pides)
     await showNextAndContinue();
 
-    // avanzar intento
     trialInLen += 1;
 
     if (trialInLen < TRIALS_PER_LEN){
@@ -387,7 +391,7 @@
       return;
     }
 
-    // fin de longitud
+    // Si en esa longitud falló los 2 intentos (correctThisLen===0), se interrumpe.
     if (correctThisLen >= 1){
       curLen += 1;
       trialInLen = 0;
@@ -407,9 +411,7 @@
     attemptN += 1;
     setStatus();
 
-    // secuencia fija por longitud, selector por trialInLen (0/1)
     currentSeqIdx = getFixedSeqIdx(curLen, trialInLen);
-
     await presentSequence(currentSeqIdx);
   }
 
@@ -419,8 +421,8 @@
     setLamp(false);
     btnStart.disabled = false;
 
-    showOverlay(`FIN\n\nSPAN = ${bestSpan || 0}\nACIERTOS = ${totalCorrect}`);
-    hint.textContent = "Fin de la tarea.";
+    // Resultado en texto simple debajo de los botones
+    hint.textContent = `FIN. Span = ${bestSpan || 0} | Total aciertos = ${totalCorrect}`;
     setStatus();
   }
 
@@ -451,7 +453,7 @@
     running = true;
     btnStart.disabled = true;
 
-    // pequeño “ready” opcional antes del primer ensayo (puedes quitarlo si no lo quieres)
+    // “SIGUIENTE” inicial para asegurar preparación
     await showNextAndContinue();
 
     await nextTrial();
