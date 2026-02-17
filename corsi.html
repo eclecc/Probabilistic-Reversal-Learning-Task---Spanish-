@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Corsi (táctil) – demo</title>
+  <style>
+    :root{
+      --bg:#0b0b0f;
+      --frame:#f0d64a;
+      --flash:#ffe86a;
+      --tap:#fff3a8;
+      --text:#eaeaf2;
+      --muted:#a6a6b3;
+      --blue:#4aa3ff;
+    }
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg); color:var(--text);
+      display:flex; min-height:100vh; flex-direction:column;
+    }
+    header{
+      padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08);
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+    .status{font-size:14px; color:var(--muted); line-height:1.2}
+    .lamp{
+      width:12px; height:12px; border-radius:50%;
+      background:rgba(74,163,255,.12); border:1px solid rgba(74,163,255,.35);
+      box-shadow:none;
+    }
+    .lamp.on{
+      background:var(--blue);
+      box-shadow:0 0 18px rgba(74,163,255,.75);
+      border-color:rgba(74,163,255,.9);
+    }
+    main{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px;}
+    #boardWrap{
+      width:min(92vw, 520px);
+      aspect-ratio: 1020 / 820; /* “canvas lógico” estilo eCorsi */
+      position:relative;
+      background:#000;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.08);
+      overflow:hidden;
+      touch-action: manipulation; /* evita zoom/scroll por doble tap */
+    }
+    .block{
+      position:absolute;
+      border:3px solid var(--frame);
+      border-radius:10px;
+      background:transparent;
+      box-sizing:border-box;
+      display:flex; align-items:center; justify-content:center;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .block.flash{ background:var(--flash); }
+    .block.tapped{ background:var(--tap); }
+    .panel{
+      width:min(92vw, 520px);
+      margin-top:12px;
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
+    }
+    button{
+      padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06); color:var(--text);
+      font-weight:600;
+    }
+    button:disabled{opacity:.45}
+    .mono{font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;}
+    #log{width:min(92vw, 520px); margin-top:10px; font-size:13px; color:var(--muted); white-space:pre-wrap;}
+  </style>
+</head>
+<body>
+<header>
+  <div class="status">
+    <div><strong>Demo Corsi táctil (forward)</strong></div>
+    <div class="mono" id="statusLine">Listo.</div>
+  </div>
+  <div class="lamp" id="lamp" title="Luz azul: puedes responder"></div>
+</header>
+
+<main>
+  <div id="boardWrap" aria-label="Tablero Corsi"></div>
+  <div class="panel">
+    <button id="btnStart">Empezar</button>
+    <button id="btnReset">Reset</button>
+    <div class="mono" id="scoreLine">Span: – | Total aciertos: –</div>
+  </div>
+  <div id="log" class="mono"></div>
+</main>
+
+<script>
+(() => {
+  // === Parámetros temporales del eCorsi (paper) ===
+  // Flash 500 ms; Inter-Onset Interval 1000 ms (inicio a inicio).  => ISI efectivo: 500 ms.
+  const FLASH_MS = 500;
+  const IOI_MS   = 1000;
+
+  // === Config de tarea ===
+  const START_LEN = 2;
+  const MAX_LEN = 9;          // con 9 bloques, max sin repetición natural
+  const TRIALS_PER_LEN = 2;   // 2 intentos por longitud
+
+  // Layout normalizado (0..1) dentro del "canvas lógico". Sustituye por tus coords si quieres.
+  // Cada bloque es un cuadrado de lado SIZE_N (normalizado respecto al ancho).
+  const SIZE_N = 0.12; // aprox. 120/1020
+  const BLOCKS_NORM = [
+    {x:0.08, y:0.18}, {x:0.30, y:0.08}, {x:0.58, y:0.14},
+    {x:0.76, y:0.32}, {x:0.52, y:0.34}, {x:0.22, y:0.34},
+    {x:0.12, y:0.62}, {x:0.42, y:0.66}, {x:0.72, y:0.60},
+  ];
+
+  // === DOM ===
+  const board = document.getElementById('boardWrap');
+  const btnStart = document.getElementById('btnStart');
+  const btnReset = document.getElementById('btnReset');
+  const statusLine = document.getElementById('statusLine');
+  const scoreLine = document.getElementById('scoreLine');
+  const lamp = document.getElementById('lamp');
+  const logEl = document.getElementById('log');
+
+  // === Estado ===
+  let blocks = [];
+  let running = false;
+  let accepting = false;
+
+  let curLen = START_LEN;
+  let trialInLen = 0;
+
+  let currentSeq = [];
+  let respSeq = [];
+
+  let totalCorrect = 0;
+  let bestSpan = 0;
+
+  // tracking para regla "si aciertas >=1 en esa longitud"
+  let correctThisLen = 0;
+
+  function setLamp(on){
+    lamp.classList.toggle('on', !!on);
+  }
+
+  function setStatus(msg){ statusLine.textContent = msg; }
+  function setLog(msg){ logEl.textContent = msg; }
+
+  function renderBoard(){
+    board.innerHTML = "";
+    blocks = BLOCKS_NORM.map((b, i) => {
+      const el = document.createElement('div');
+      el.className = 'block';
+      el.dataset.idx = String(i);
+      // posicionamiento relativo al contenedor
+      el.style.left = (b.x * 100) + "%";
+      el.style.top  = (b.y * 100) + "%";
+      el.style.width  = (SIZE_N * 100) + "%";
+      // alto: escalado respecto al aspect-ratio; usamos width y aspect-ratio 1 para cuadrado.
+      el.style.aspectRatio = "1 / 1";
+      el.addEventListener('pointerdown', onBlockTap, {passive:true});
+      board.appendChild(el);
+      return el;
+    });
+  }
+
+  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  async function flashSequence(seq){
+    accepting = false;
+    setLamp(false);
+    setStatus(`Observa la secuencia… (longitud ${curLen}, intento ${trialInLen+1}/${TRIALS_PER_LEN})`);
+    clearTapVisuals();
+
+    for (let k = 0; k < seq.length; k++){
+      const idx = seq[k];
+      blocks[idx].classList.add('flash');
+      await sleep(FLASH_MS);
+      blocks[idx].classList.remove('flash');
+      // Inter-onset: ya han pasado FLASH_MS, falta (IOI_MS - FLASH_MS)
+      const gap = Math.max(0, IOI_MS - FLASH_MS);
+      if (k < seq.length - 1) await sleep(gap);
+    }
+
+    // En el paper, junto al último flash se enciende la luz azul para indicar que puede responder.
+    setLamp(true);
+    setStatus(`Tu turno: toca los bloques en el MISMO orden.`);
+    accepting = true;
+    respSeq = [];
+  }
+
+  function clearTapVisuals(){
+    blocks.forEach(b => b.classList.remove('tapped'));
+  }
+
+  function onBlockTap(e){
+    if (!running || !accepting) return;
+    const idx = Number(e.currentTarget.dataset.idx);
+    respSeq.push(idx);
+    // feedback visual de que detectó el toque
+    e.currentTarget.classList.add('tapped');
+    setTimeout(() => e.currentTarget.classList.remove('tapped'), 140);
+
+    if (respSeq.length === currentSeq.length){
+      accepting = false;
+      setLamp(false);
+      scoreTrial();
+    }
+  }
+
+  function makeRandomSeq(len){
+    // sin repetición (estilo eCorsi: evita repeticiones; hasta 9 es posible)
+    const pool = [...Array(9).keys()];
+    const seq = [];
+    for (let i=0; i<len; i++){
+      const r = Math.floor(Math.random() * pool.length);
+      seq.push(pool.splice(r,1)[0]);
+    }
+    return seq;
+  }
+
+  function arraysEqual(a,b){
+    if (a.length !== b.length) return false;
+    for (let i=0;i<a.length;i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  function updateScoreUI(){
+    scoreLine.textContent = `Span: ${bestSpan || "–"} | Total aciertos: ${Number.isFinite(totalCorrect) ? totalCorrect : "–"}`;
+  }
+
+  async function scoreTrial(){
+    const ok = arraysEqual(respSeq, currentSeq);
+    if (ok){
+      totalCorrect += 1;
+      correctThisLen += 1;
+      bestSpan = Math.max(bestSpan, curLen);
+      setStatus(`✅ Correcto. Total aciertos: ${totalCorrect}`);
+    } else {
+      setStatus(`❌ Incorrecto.`);
+    }
+
+    setLog(
+      `Longitud: ${curLen} | Intento: ${trialInLen+1}/${TRIALS_PER_LEN}\n` +
+      `Secuencia: ${currentSeq.join("-")}\n` +
+      `Respuesta:  ${respSeq.join("-")}\n` +
+      `Resultado:  ${ok ? "ACIERTO" : "FALLO"}\n`
+    );
+    updateScoreUI();
+
+    await sleep(500);
+
+    // avanzar dentro de la misma longitud
+    trialInLen += 1;
+
+    if (trialInLen < TRIALS_PER_LEN){
+      await nextTrialSameLen();
+      return;
+    }
+
+    // fin de los 2 intentos de esa longitud: regla
+    if (correctThisLen >= 1){
+      // sube longitud
+      curLen += 1;
+      trialInLen = 0;
+      correctThisLen = 0;
+
+      if (curLen > MAX_LEN){
+        finish();
+      } else {
+        await nextTrialSameLen(); // ahora ya "misma" longitud actual (nueva)
+      }
+    } else {
+      // falló 2/2 => termina
+      finish();
+    }
+  }
+
+  async function nextTrialSameLen(){
+    currentSeq = makeRandomSeq(curLen);
+    await flashSequence(currentSeq);
+  }
+
+  function finish(){
+    running = false;
+    accepting = false;
+    setLamp(false);
+    btnStart.disabled = false;
+
+    // Span ya es bestSpan (máxima longitud con ≥1 acierto)
+    setStatus(`FIN. Span = ${bestSpan} | Total aciertos = ${totalCorrect}`);
+    updateScoreUI();
+  }
+
+  function resetAll(){
+    running = false;
+    accepting = false;
+
+    curLen = START_LEN;
+    trialInLen = 0;
+    currentSeq = [];
+    respSeq = [];
+
+    totalCorrect = 0;
+    bestSpan = 0;
+    correctThisLen = 0;
+
+    setLamp(false);
+    setStatus("Listo.");
+    setLog("");
+    updateScoreUI();
+    btnStart.disabled = false;
+    clearTapVisuals();
+  }
+
+  async function start(){
+    resetAll();
+    running = true;
+    btnStart.disabled = true;
+    await nextTrialSameLen();
+  }
+
+  // init
+  renderBoard();
+  updateScoreUI();
+
+  btnStart.addEventListener('click', start);
+  btnReset.addEventListener('click', resetAll);
+})();
+</script>
+</body>
+</html>
