@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>eCorsi (forward) – demo fija</title>
+  <title>eCorsi (forward) – fija</title>
   <style>
     :root{
       --bg:#0b0b0f;
@@ -32,28 +32,16 @@
       justify-content:space-between;
       gap:10px;
     }
-    .left{
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-      min-width:0;
-    }
+    .left{display:flex;flex-direction:column;gap:2px;min-width:0}
     .title{
-      font-weight:800;
-      font-size:14px;
-      letter-spacing:.2px;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      font-weight:800;font-size:14px;letter-spacing:.2px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     }
     .status{
-      font-size:13px;
-      color:var(--muted);
+      font-size:13px;color:var(--muted);
       font-variant-numeric: tabular-nums;
       font-feature-settings:"tnum" 1;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
     }
     .lamp{
       width:12px;height:12px;border-radius:50%;
@@ -78,23 +66,19 @@
       gap:10px;
     }
 
-    /* contenedor que funciona bien en vertical u horizontal */
     #boardWrap{
-      width:min(96vw, 720px);
-      height:min(78svh, 520px);
+      width:min(96vw, 760px);
+      height:min(78svh, 560px);
       position:relative;
       border-radius:14px;
       border:1px solid rgba(255,255,255,.10);
       background:#000;
       overflow:hidden;
-      touch-action: manipulation; /* evita zoom/scroll por doble tap */
+      touch-action: manipulation;
     }
-
-    /* "inner" es el canvas lógico 1020x820 escalado/centrado */
     #boardInner{
       position:absolute;
-      left:0; top:0;
-      width:100%; height:100%;
+      inset:0;
     }
 
     .block{
@@ -104,15 +88,30 @@
       background:transparent;
       -webkit-tap-highlight-color: transparent;
       user-select:none;
-      display:flex;
-      align-items:center;
-      justify-content:center;
     }
     .block.flash{ background:var(--flash); }
     .block.tapped{ background:var(--tap); }
 
+    /* Overlay centrado (Siguiente, FIN, etc.) */
+    #overlay{
+      position:absolute;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:18px;
+      background:rgba(0,0,0,.35);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      font-weight:900;
+      font-size: clamp(22px, 5vw, 44px);
+      letter-spacing:.6px;
+    }
+    #overlay.show{ display:flex; }
+
     .panel{
-      width:min(96vw, 720px);
+      width:min(96vw, 760px);
       display:flex;
       align-items:center;
       justify-content:space-between;
@@ -125,14 +124,12 @@
       border:1px solid rgba(255,255,255,.12);
       background:rgba(255,255,255,.06);
       color:var(--text);
-      font-weight:700;
+      font-weight:800;
     }
     button:disabled{opacity:.45}
     .hint{
-      font-size:12px;
-      color:var(--muted);
-      line-height:1.25;
-      max-width:60ch;
+      font-size:12px;color:var(--muted);line-height:1.25;
+      max-width:70ch;
     }
   </style>
 </head>
@@ -148,40 +145,37 @@
 <main>
   <div id="boardWrap" aria-label="Tablero eCorsi">
     <div id="boardInner"></div>
+    <div id="overlay"></div>
   </div>
 
   <div class="panel">
     <button id="btnStart">Empezar</button>
     <button id="btnReset">Reset</button>
-    <div class="hint" id="hint">
-      Toca los bloques en el mismo orden. (No se muestran secuencias.)
-    </div>
+    <div class="hint" id="hint">Observa la secuencia y luego toca los bloques en el mismo orden.</div>
   </div>
 </main>
 
 <script>
 (() => {
-  // =============================
-  // Timings del artículo eCorsi:
-  // flash = 500 ms; Inter-Onset Interval = 1000 ms; luz azul al final. :contentReference[oaicite:5]{index=5}
-  // =============================
+  // --- Timings del artículo ---
   const FLASH_MS = 500;
   const IOI_MS = 1000;
 
-  // El artículo no especifica un ITI fijo: aquí ponemos un buffer mínimo para evitar taps residuales.
-  const ITI_AFTER_RESPONSE_MS = 700;
+  // --- Buffers / pauses ---
+  // Pausa tras responder antes de mostrar "Siguiente" (para evitar doble tap residual)
+  const POST_RESPONSE_BUFFER_MS = 250;
+  // Tiempo que permanece "Siguiente" en pantalla antes del inicio del próximo ensayo (lo que pides)
+  const NEXT_OVERLAY_MS = 1200;
 
-  // =============================
-  // Layout (datasheet): canvas lógico 1020x820, bloques 120x120,
-  // coordenadas finales (vista del sujeto; ya "flip" aplicado). :contentReference[oaicite:6]{index=6}
-  // =============================
+  // --- Layout lógico (datasheet) ---
   const CANVAS_W = 1020;
   const CANVAS_H = 820;
   const BLOCK_SIZE = 120;
 
-  // Bloques numerados 1..9 en el datasheet. Aquí usamos índice 0..8.
+  // Coordenadas finales del datasheet (vista del sujeto). IDs 1..9
   const BLOCKS = [
-    {id:1,:contentReference[oaicite:7]{index=7}id:2, x:753, y:534},
+    {id:1, x:353, y:574},
+    {id:2, x:753, y:534},
     {id:3, x:153, y:444},
     {id:4, x:603, y:394},
     {id:5, x:313, y:314},
@@ -191,14 +185,12 @@
     {id:9, x:333, y:74},
   ];
 
-  // =============================
-  // Secuencias fijas (forward) del datasheet (2 por longitud). :contentReference[oaicite:8]{index=8}
-  // OJO: en el datasheet están en IDs 1..9. Aquí convertimos a índices 0..8.
-  // =============================
+  // Secuencias fijas forward: 2 por longitud (datasheet). IDs 1..9
   const FIXED_FORWARD = {
     2:  [[4,7],[2,9]],
     3:  [[9,3,4],[6,3,7]],
-    4:  [[1,5,2,8],[7:contentReference[oaicite:9]{index=9},1,8,6,5],[9,3,1,4,7]],
+    4:  [[1,5,2,8],[7,4,3,9]],
+    5:  [[3,1,8,6,5],[9,3,1,4,7]],
     6:  [[2,8,3,5,6,4],[5,3,1,2,8,9]],
     7:  [[7,3,2,9,1,8,6],[4,3,7,6,2,5,9]],
     8:  [[1,9,6,3,5,4,2,8],[2,9,4,6,1,7,3,5]],
@@ -209,45 +201,62 @@
   const MAX_LEN = 9;
   const TRIALS_PER_LEN = 2;
 
-  // =============================
-  // DOM
-  // =============================
+  // --- DOM ---
   const boardWrap = document.getElementById('boardWrap');
   const boardInner = document.getElementById('boardInner');
+  const overlay = document.getElementById('overlay');
+
   const btnStart = document.getElementById('btnStart');
   const btnReset = document.getElementById('btnReset');
   const statusLine = document.getElementById('statusLine');
   const lamp = document.getElementById('lamp');
   const hint = document.getElementById('hint');
 
-  // =============================
-  // Estado
-  // =============================
-  let blockEls = [];       // index 0..8
+  // --- Estado ---
+  let blockEls = [];
   let running = false;
-  let accepting = false;
+
+  // state machine
+  // "idle" | "presenting" | "responding" | "between" | "finished"
+  let state = "idle";
 
   let curLen = MIN_LEN;
-  let trialInLen = 0;      // 0..1
+  let trialInLen = 0; // 0..1
   let attemptN = 0;
 
-  let currentSeqIdx = [];  // índices 0..8
+  let currentSeqIdx = [];
   let respSeqIdx = [];
 
   let bestSpan = 0;
   let totalCorrect = 0;
   let correctThisLen = 0;
 
-  // =============================
-  // Helpers
-  // =============================
+  // --- Helpers ---
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
   function setLamp(on){ lamp.classList.toggle('on', !!on); }
+
+  function showOverlay(text){
+    overlay.textContent = text;
+    overlay.classList.add('show');
+  }
+  function hideOverlay(){
+    overlay.textContent = "";
+    overlay.classList.remove('show');
+  }
+
   function setStatus(){
     const spanTxt = bestSpan ? String(bestSpan) : "–";
     const attemptTxt = attemptN ? String(attemptN) : "–";
     statusLine.textContent = `Ensayo: ${attemptTxt} | Span actual: ${spanTxt}`;
   }
-  function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+  function clearVisuals(){
+    for (const el of blockEls){
+      el.classList.remove('flash');
+      el.classList.remove('tapped');
+    }
+  }
 
   function idsToIdx(seqIDs){
     return seqIDs.map(id => {
@@ -263,28 +272,29 @@
     return true;
   }
 
-  // =============================
-  // Render + Responsive layout (vertical/horizontal)
-  // =============================
+  function getFixedSeqIdx(len, which){
+    const seqIDs = FIXED_FORWARD[len][which]; // which = 0/1
+    return idsToIdx(seqIDs);
+  }
+
+  // --- Render + responsive ---
   function renderBlocks(){
     boardInner.innerHTML = "";
     blockEls = BLOCKS.map((b, idx) => {
       const el = document.createElement('div');
       el.className = "block";
       el.dataset.idx = String(idx);
-      el.addEventListener('pointerdown', onTap, {passive:true});
+      // pointerup suele ser más estable en móvil para tareas de tapping
+      el.addEventListener('pointerup', onTap);
       boardInner.appendChild(el);
       return el;
     });
-    layoutBlocks(); // primera colocación
+    layoutBlocks();
   }
 
   function layoutBlocks(){
-    // Escala el canvas lógico 1020x820 dentro del contenedor real, manteniendo aspecto,
-    // y centra (offsetX/offsetY).
     const W = boardWrap.clientWidth;
     const H = boardWrap.clientHeight;
-
     const scale = Math.min(W / CANVAS_W, H / CANVAS_H);
     const usedW = CANVAS_W * scale;
     const usedH = CANVAS_H * scale;
@@ -296,24 +306,21 @@
       const el = blockEls[i];
       el.style.left = (offsetX + b.x * scale) + "px";
       el.style.top  = (offsetY + b.y * scale) + "px";
-      el.style.width = (BLOCK_SIZE * scale) + "px";
+      el.style.width  = (BLOCK_SIZE * scale) + "px";
       el.style.height = (BLOCK_SIZE * scale) + "px";
     }
   }
 
-  // Re-layout al rotar / resize (vertical/horizontal)
-  const ro = new ResizeObserver(() => layoutBlocks());
+  const ro = new ResizeObserver(layoutBlocks);
   ro.observe(boardWrap);
 
-  // =============================
-  // Presentación de secuencia
-  // =============================
-  async function flashSequence(seqIdx){
-    accepting = false;
+  // --- Presentación (flash) ---
+  async function presentSequence(seqIdx){
+    state = "presenting";
     setLamp(false);
+    hideOverlay();
     clearVisuals();
 
-    // Presentación: cada flash 500ms, IOI=1000ms (=> gap 500ms). :contentReference[oaicite:10]{index=10}
     for (let k=0;k<seqIdx.length;k++){
       const idx = seqIdx[k];
       blockEls[idx].classList.add('flash');
@@ -324,44 +331,39 @@
       if (k < seqIdx.length - 1) await sleep(gap);
     }
 
-    // Al acabar la secuencia, luz azul indica "puedes responder". :contentReference[oaicite:11]{index=11}
+    // luz azul: puede responder
     setLamp(true);
-    accepting = true;
+    state = "responding";
     respSeqIdx = [];
   }
 
-  function clearVisuals(){
-    for (const el of blockEls){
-      el.classList.remove('flash');
-      el.classList.remove('tapped');
-    }
-  }
-
-  // =============================
-  // Respuesta
-  // =============================
+  // --- Respuesta ---
   function onTap(e){
-    if (!running || !accepting) return;
+    if (!running || state !== "responding") return;
 
     const idx = Number(e.currentTarget.dataset.idx);
     respSeqIdx.push(idx);
 
-    // Confirmación breve de toque (el artículo dice que se iluminan para confirmar detección,
-    // no especifica que queden marcados). :contentReference[oaicite:12]{index=12}
-    e.currentTarget.classList.add('tapped');
-    setTimeout(() => e.currentTarget.classList.remove('tapped'), 120);
+    // confirmación breve del toque (no queda marcado)
+    const el = e.currentTarget;
+    el.classList.add('tapped');
+    setTimeout(() => el.classList.remove('tapped'), 120);
 
     if (respSeqIdx.length === currentSeqIdx.length){
-      accepting = false;
       setLamp(false);
+      state = "between";
       void scoreAndAdvance();
     }
   }
 
-  // =============================
-  // Lógica span (como en el artículo: si acierta ≥1 de la misma longitud, sube)
-  // :contentReference[oaicite:13]{index=13}
-  // =============================
+  // --- Entre ensayos: mostrar "Siguiente" SIEMPRE ---
+  async function showNextAndContinue(){
+    showOverlay("SIGUIENTE");
+    await sleep(NEXT_OVERLAY_MS);
+    hideOverlay();
+  }
+
+  // --- Score + lógica span ---
   async function scoreAndAdvance(){
     const ok = arraysEqual(respSeqIdx, currentSeqIdx);
     if (ok){
@@ -369,11 +371,15 @@
       correctThisLen += 1;
       bestSpan = Math.max(bestSpan, curLen);
     }
-
     setStatus();
 
-    await sleep(ITI_AFTER_RESPONSE_MS);
+    // buffer corto post-respuesta
+    await sleep(POST_RESPONSE_BUFFER_MS);
 
+    // mensaje “Siguiente” con pausa (lo que pides)
+    await showNextAndContinue();
+
+    // avanzar intento
     trialInLen += 1;
 
     if (trialInLen < TRIALS_PER_LEN){
@@ -381,7 +387,7 @@
       return;
     }
 
-    // fin longitud
+    // fin de longitud
     if (correctThisLen >= 1){
       curLen += 1;
       trialInLen = 0;
@@ -397,36 +403,30 @@
     }
   }
 
-  function getFixedSeq(len, which){
-    // which: 0 o 1
-    const seqIDs = FIXED_FORWARD[len][which];
-    return idsToIdx(seqIDs);
-  }
-
   async function nextTrial(){
     attemptN += 1;
     setStatus();
 
-    // Secuencia fija: para cada longitud, usamos trialInLen (0/1) como selector
-    currentSeqIdx = getFixedSeq(curLen, trialInLen);
+    // secuencia fija por longitud, selector por trialInLen (0/1)
+    currentSeqIdx = getFixedSeqIdx(curLen, trialInLen);
 
-    await flashSequence(currentSeqIdx);
+    await presentSequence(currentSeqIdx);
   }
 
   function finish(){
     running = false;
-    accepting = false;
+    state = "finished";
     setLamp(false);
     btnStart.disabled = false;
 
-    // Solo info final sin secuencias:
-    hint.textContent = `FIN. Span = ${bestSpan || 0} | Total aciertos = ${totalCorrect}`;
+    showOverlay(`FIN\n\nSPAN = ${bestSpan || 0}\nACIERTOS = ${totalCorrect}`);
+    hint.textContent = "Fin de la tarea.";
     setStatus();
   }
 
   function resetAll(){
     running = false;
-    accepting = false;
+    state = "idle";
     setLamp(false);
     btnStart.disabled = false;
 
@@ -440,8 +440,9 @@
     totalCorrect = 0;
     correctThisLen = 0;
 
+    hideOverlay();
     clearVisuals();
-    hint.textContent = "Toca los bloques en el mismo orden. (No se muestran secuencias.)";
+    hint.textContent = "Observa la secuencia y luego toca los bloques en el mismo orden.";
     setStatus();
   }
 
@@ -449,6 +450,10 @@
     resetAll();
     running = true;
     btnStart.disabled = true;
+
+    // pequeño “ready” opcional antes del primer ensayo (puedes quitarlo si no lo quieres)
+    await showNextAndContinue();
+
     await nextTrial();
   }
 
@@ -458,7 +463,6 @@
 
   btnStart.addEventListener('click', () => void start());
   btnReset.addEventListener('click', resetAll);
-
 })();
 </script>
 </body>
