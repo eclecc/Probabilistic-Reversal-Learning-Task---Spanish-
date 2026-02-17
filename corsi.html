@@ -3,219 +3,258 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Corsi (táctil) – demo</title>
+  <title>eCorsi (forward) – demo fija</title>
   <style>
     :root{
       --bg:#0b0b0f;
+      --text:#eaeaf2;
+      --muted:#a6a6b3;
       --frame:#f0d64a;
       --flash:#ffe86a;
       --tap:#fff3a8;
-      --text:#eaeaf2;
-      --muted:#a6a6b3;
       --blue:#4aa3ff;
     }
+    *{box-sizing:border-box}
     body{
-      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:var(--bg); color:var(--text);
-      display:flex; min-height:100vh; flex-direction:column;
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      min-height:100svh;
+      display:flex;
+      flex-direction:column;
     }
     header{
-      padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.08);
-      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      padding:10px 12px;
+      border-bottom:1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
     }
-    .status{font-size:14px; color:var(--muted); line-height:1.2}
+    .left{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width:0;
+    }
+    .title{
+      font-weight:800;
+      font-size:14px;
+      letter-spacing:.2px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .status{
+      font-size:13px;
+      color:var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-feature-settings:"tnum" 1;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
     .lamp{
-      width:12px; height:12px; border-radius:50%;
-      background:rgba(74,163,255,.12); border:1px solid rgba(74,163,255,.35);
+      width:12px;height:12px;border-radius:50%;
+      background:rgba(74,163,255,.14);
+      border:1px solid rgba(74,163,255,.35);
       box-shadow:none;
+      flex:0 0 auto;
     }
     .lamp.on{
       background:var(--blue);
+      border-color:rgba(74,163,255,.95);
       box-shadow:0 0 18px rgba(74,163,255,.75);
-      border-color:rgba(74,163,255,.9);
     }
-    main{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px;}
+
+    main{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+      gap:10px;
+    }
+
+    /* contenedor que funciona bien en vertical u horizontal */
     #boardWrap{
-      width:min(92vw, 520px);
-      aspect-ratio: 1020 / 820; /* “canvas lógico” estilo eCorsi */
+      width:min(96vw, 720px);
+      height:min(78svh, 520px);
       position:relative;
-      background:#000;
       border-radius:14px;
-      border:1px solid rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.10);
+      background:#000;
       overflow:hidden;
       touch-action: manipulation; /* evita zoom/scroll por doble tap */
     }
+
+    /* "inner" es el canvas lógico 1020x820 escalado/centrado */
+    #boardInner{
+      position:absolute;
+      left:0; top:0;
+      width:100%; height:100%;
+    }
+
     .block{
       position:absolute;
       border:3px solid var(--frame);
       border-radius:10px;
       background:transparent;
-      box-sizing:border-box;
-      display:flex; align-items:center; justify-content:center;
-      user-select:none;
       -webkit-tap-highlight-color: transparent;
+      user-select:none;
+      display:flex;
+      align-items:center;
+      justify-content:center;
     }
     .block.flash{ background:var(--flash); }
     .block.tapped{ background:var(--tap); }
+
     .panel{
-      width:min(92vw, 520px);
-      margin-top:12px;
-      display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; align-items:center;
+      width:min(96vw, 720px);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      flex-wrap:wrap;
     }
     button{
-      padding:10px 12px; border-radius:10px; border:1px solid rgba(255,255,255,.12);
-      background:rgba(255,255,255,.06); color:var(--text);
-      font-weight:600;
+      padding:10px 12px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      font-weight:700;
     }
     button:disabled{opacity:.45}
-    .mono{font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;}
-    #log{width:min(92vw, 520px); margin-top:10px; font-size:13px; color:var(--muted); white-space:pre-wrap;}
+    .hint{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.25;
+      max-width:60ch;
+    }
   </style>
 </head>
 <body>
 <header>
-  <div class="status">
-    <div><strong>Demo Corsi táctil (forward)</strong></div>
-    <div class="mono" id="statusLine">Listo.</div>
+  <div class="left">
+    <div class="title">eCorsi – forward (secuencia fija)</div>
+    <div class="status" id="statusLine">Ensayo: – | Span actual: –</div>
   </div>
   <div class="lamp" id="lamp" title="Luz azul: puedes responder"></div>
 </header>
 
 <main>
-  <div id="boardWrap" aria-label="Tablero Corsi"></div>
+  <div id="boardWrap" aria-label="Tablero eCorsi">
+    <div id="boardInner"></div>
+  </div>
+
   <div class="panel">
     <button id="btnStart">Empezar</button>
     <button id="btnReset">Reset</button>
-    <div class="mono" id="scoreLine">Span: – | Total aciertos: –</div>
+    <div class="hint" id="hint">
+      Toca los bloques en el mismo orden. (No se muestran secuencias.)
+    </div>
   </div>
-  <div id="log" class="mono"></div>
 </main>
 
 <script>
 (() => {
-  // === Parámetros temporales del eCorsi (paper) ===
-  // Flash 500 ms; Inter-Onset Interval 1000 ms (inicio a inicio).  => ISI efectivo: 500 ms.
+  // =============================
+  // Timings del artículo eCorsi:
+  // flash = 500 ms; Inter-Onset Interval = 1000 ms; luz azul al final. :contentReference[oaicite:5]{index=5}
+  // =============================
   const FLASH_MS = 500;
-  const IOI_MS   = 1000;
+  const IOI_MS = 1000;
 
-  // === Config de tarea ===
-  const START_LEN = 2;
-  const MAX_LEN = 9;          // con 9 bloques, max sin repetición natural
-  const TRIALS_PER_LEN = 2;   // 2 intentos por longitud
+  // El artículo no especifica un ITI fijo: aquí ponemos un buffer mínimo para evitar taps residuales.
+  const ITI_AFTER_RESPONSE_MS = 700;
 
-  // Layout normalizado (0..1) dentro del "canvas lógico". Sustituye por tus coords si quieres.
-  // Cada bloque es un cuadrado de lado SIZE_N (normalizado respecto al ancho).
-  const SIZE_N = 0.12; // aprox. 120/1020
-  const BLOCKS_NORM = [
-    {x:0.08, y:0.18}, {x:0.30, y:0.08}, {x:0.58, y:0.14},
-    {x:0.76, y:0.32}, {x:0.52, y:0.34}, {x:0.22, y:0.34},
-    {x:0.12, y:0.62}, {x:0.42, y:0.66}, {x:0.72, y:0.60},
+  // =============================
+  // Layout (datasheet): canvas lógico 1020x820, bloques 120x120,
+  // coordenadas finales (vista del sujeto; ya "flip" aplicado). :contentReference[oaicite:6]{index=6}
+  // =============================
+  const CANVAS_W = 1020;
+  const CANVAS_H = 820;
+  const BLOCK_SIZE = 120;
+
+  // Bloques numerados 1..9 en el datasheet. Aquí usamos índice 0..8.
+  const BLOCKS = [
+    {id:1,:contentReference[oaicite:7]{index=7}id:2, x:753, y:534},
+    {id:3, x:153, y:444},
+    {id:4, x:603, y:394},
+    {id:5, x:313, y:314},
+    {id:6, x:103, y:194},
+    {id:7, x:813, y:154},
+    {id:8, x:573, y:34},
+    {id:9, x:333, y:74},
   ];
 
-  // === DOM ===
-  const board = document.getElementById('boardWrap');
+  // =============================
+  // Secuencias fijas (forward) del datasheet (2 por longitud). :contentReference[oaicite:8]{index=8}
+  // OJO: en el datasheet están en IDs 1..9. Aquí convertimos a índices 0..8.
+  // =============================
+  const FIXED_FORWARD = {
+    2:  [[4,7],[2,9]],
+    3:  [[9,3,4],[6,3,7]],
+    4:  [[1,5,2,8],[7:contentReference[oaicite:9]{index=9},1,8,6,5],[9,3,1,4,7]],
+    6:  [[2,8,3,5,6,4],[5,3,1,2,8,9]],
+    7:  [[7,3,2,9,1,8,6],[4,3,7,6,2,5,9]],
+    8:  [[1,9,6,3,5,4,2,8],[2,9,4,6,1,7,3,5]],
+    9:  [[5,3,8,7,1,2,4,6,9],[4,2,6,8,1,7,9,3,5]],
+  };
+
+  const MIN_LEN = 2;
+  const MAX_LEN = 9;
+  const TRIALS_PER_LEN = 2;
+
+  // =============================
+  // DOM
+  // =============================
+  const boardWrap = document.getElementById('boardWrap');
+  const boardInner = document.getElementById('boardInner');
   const btnStart = document.getElementById('btnStart');
   const btnReset = document.getElementById('btnReset');
   const statusLine = document.getElementById('statusLine');
-  const scoreLine = document.getElementById('scoreLine');
   const lamp = document.getElementById('lamp');
-  const logEl = document.getElementById('log');
+  const hint = document.getElementById('hint');
 
-  // === Estado ===
-  let blocks = [];
+  // =============================
+  // Estado
+  // =============================
+  let blockEls = [];       // index 0..8
   let running = false;
   let accepting = false;
 
-  let curLen = START_LEN;
-  let trialInLen = 0;
+  let curLen = MIN_LEN;
+  let trialInLen = 0;      // 0..1
+  let attemptN = 0;
 
-  let currentSeq = [];
-  let respSeq = [];
+  let currentSeqIdx = [];  // índices 0..8
+  let respSeqIdx = [];
 
-  let totalCorrect = 0;
   let bestSpan = 0;
-
-  // tracking para regla "si aciertas >=1 en esa longitud"
+  let totalCorrect = 0;
   let correctThisLen = 0;
 
-  function setLamp(on){
-    lamp.classList.toggle('on', !!on);
+  // =============================
+  // Helpers
+  // =============================
+  function setLamp(on){ lamp.classList.toggle('on', !!on); }
+  function setStatus(){
+    const spanTxt = bestSpan ? String(bestSpan) : "–";
+    const attemptTxt = attemptN ? String(attemptN) : "–";
+    statusLine.textContent = `Ensayo: ${attemptTxt} | Span actual: ${spanTxt}`;
   }
-
-  function setStatus(msg){ statusLine.textContent = msg; }
-  function setLog(msg){ logEl.textContent = msg; }
-
-  function renderBoard(){
-    board.innerHTML = "";
-    blocks = BLOCKS_NORM.map((b, i) => {
-      const el = document.createElement('div');
-      el.className = 'block';
-      el.dataset.idx = String(i);
-      // posicionamiento relativo al contenedor
-      el.style.left = (b.x * 100) + "%";
-      el.style.top  = (b.y * 100) + "%";
-      el.style.width  = (SIZE_N * 100) + "%";
-      // alto: escalado respecto al aspect-ratio; usamos width y aspect-ratio 1 para cuadrado.
-      el.style.aspectRatio = "1 / 1";
-      el.addEventListener('pointerdown', onBlockTap, {passive:true});
-      board.appendChild(el);
-      return el;
-    });
-  }
-
   function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
 
-  async function flashSequence(seq){
-    accepting = false;
-    setLamp(false);
-    setStatus(`Observa la secuencia… (longitud ${curLen}, intento ${trialInLen+1}/${TRIALS_PER_LEN})`);
-    clearTapVisuals();
-
-    for (let k = 0; k < seq.length; k++){
-      const idx = seq[k];
-      blocks[idx].classList.add('flash');
-      await sleep(FLASH_MS);
-      blocks[idx].classList.remove('flash');
-      // Inter-onset: ya han pasado FLASH_MS, falta (IOI_MS - FLASH_MS)
-      const gap = Math.max(0, IOI_MS - FLASH_MS);
-      if (k < seq.length - 1) await sleep(gap);
-    }
-
-    // En el paper, junto al último flash se enciende la luz azul para indicar que puede responder.
-    setLamp(true);
-    setStatus(`Tu turno: toca los bloques en el MISMO orden.`);
-    accepting = true;
-    respSeq = [];
-  }
-
-  function clearTapVisuals(){
-    blocks.forEach(b => b.classList.remove('tapped'));
-  }
-
-  function onBlockTap(e){
-    if (!running || !accepting) return;
-    const idx = Number(e.currentTarget.dataset.idx);
-    respSeq.push(idx);
-    // feedback visual de que detectó el toque
-    e.currentTarget.classList.add('tapped');
-    setTimeout(() => e.currentTarget.classList.remove('tapped'), 140);
-
-    if (respSeq.length === currentSeq.length){
-      accepting = false;
-      setLamp(false);
-      scoreTrial();
-    }
-  }
-
-  function makeRandomSeq(len){
-    // sin repetición (estilo eCorsi: evita repeticiones; hasta 9 es posible)
-    const pool = [...Array(9).keys()];
-    const seq = [];
-    for (let i=0; i<len; i++){
-      const r = Math.floor(Math.random() * pool.length);
-      seq.push(pool.splice(r,1)[0]);
-    }
-    return seq;
+  function idsToIdx(seqIDs){
+    return seqIDs.map(id => {
+      const idx = BLOCKS.findIndex(b => b.id === id);
+      if (idx < 0) throw new Error("ID de bloque no encontrado: " + id);
+      return idx;
+    });
   }
 
   function arraysEqual(a,b){
@@ -224,42 +263,126 @@
     return true;
   }
 
-  function updateScoreUI(){
-    scoreLine.textContent = `Span: ${bestSpan || "–"} | Total aciertos: ${Number.isFinite(totalCorrect) ? totalCorrect : "–"}`;
+  // =============================
+  // Render + Responsive layout (vertical/horizontal)
+  // =============================
+  function renderBlocks(){
+    boardInner.innerHTML = "";
+    blockEls = BLOCKS.map((b, idx) => {
+      const el = document.createElement('div');
+      el.className = "block";
+      el.dataset.idx = String(idx);
+      el.addEventListener('pointerdown', onTap, {passive:true});
+      boardInner.appendChild(el);
+      return el;
+    });
+    layoutBlocks(); // primera colocación
   }
 
-  async function scoreTrial(){
-    const ok = arraysEqual(respSeq, currentSeq);
+  function layoutBlocks(){
+    // Escala el canvas lógico 1020x820 dentro del contenedor real, manteniendo aspecto,
+    // y centra (offsetX/offsetY).
+    const W = boardWrap.clientWidth;
+    const H = boardWrap.clientHeight;
+
+    const scale = Math.min(W / CANVAS_W, H / CANVAS_H);
+    const usedW = CANVAS_W * scale;
+    const usedH = CANVAS_H * scale;
+    const offsetX = (W - usedW) / 2;
+    const offsetY = (H - usedH) / 2;
+
+    for (let i=0;i<BLOCKS.length;i++){
+      const b = BLOCKS[i];
+      const el = blockEls[i];
+      el.style.left = (offsetX + b.x * scale) + "px";
+      el.style.top  = (offsetY + b.y * scale) + "px";
+      el.style.width = (BLOCK_SIZE * scale) + "px";
+      el.style.height = (BLOCK_SIZE * scale) + "px";
+    }
+  }
+
+  // Re-layout al rotar / resize (vertical/horizontal)
+  const ro = new ResizeObserver(() => layoutBlocks());
+  ro.observe(boardWrap);
+
+  // =============================
+  // Presentación de secuencia
+  // =============================
+  async function flashSequence(seqIdx){
+    accepting = false;
+    setLamp(false);
+    clearVisuals();
+
+    // Presentación: cada flash 500ms, IOI=1000ms (=> gap 500ms). :contentReference[oaicite:10]{index=10}
+    for (let k=0;k<seqIdx.length;k++){
+      const idx = seqIdx[k];
+      blockEls[idx].classList.add('flash');
+      await sleep(FLASH_MS);
+      blockEls[idx].classList.remove('flash');
+
+      const gap = Math.max(0, IOI_MS - FLASH_MS);
+      if (k < seqIdx.length - 1) await sleep(gap);
+    }
+
+    // Al acabar la secuencia, luz azul indica "puedes responder". :contentReference[oaicite:11]{index=11}
+    setLamp(true);
+    accepting = true;
+    respSeqIdx = [];
+  }
+
+  function clearVisuals(){
+    for (const el of blockEls){
+      el.classList.remove('flash');
+      el.classList.remove('tapped');
+    }
+  }
+
+  // =============================
+  // Respuesta
+  // =============================
+  function onTap(e){
+    if (!running || !accepting) return;
+
+    const idx = Number(e.currentTarget.dataset.idx);
+    respSeqIdx.push(idx);
+
+    // Confirmación breve de toque (el artículo dice que se iluminan para confirmar detección,
+    // no especifica que queden marcados). :contentReference[oaicite:12]{index=12}
+    e.currentTarget.classList.add('tapped');
+    setTimeout(() => e.currentTarget.classList.remove('tapped'), 120);
+
+    if (respSeqIdx.length === currentSeqIdx.length){
+      accepting = false;
+      setLamp(false);
+      void scoreAndAdvance();
+    }
+  }
+
+  // =============================
+  // Lógica span (como en el artículo: si acierta ≥1 de la misma longitud, sube)
+  // :contentReference[oaicite:13]{index=13}
+  // =============================
+  async function scoreAndAdvance(){
+    const ok = arraysEqual(respSeqIdx, currentSeqIdx);
     if (ok){
       totalCorrect += 1;
       correctThisLen += 1;
       bestSpan = Math.max(bestSpan, curLen);
-      setStatus(`✅ Correcto. Total aciertos: ${totalCorrect}`);
-    } else {
-      setStatus(`❌ Incorrecto.`);
     }
 
-    setLog(
-      `Longitud: ${curLen} | Intento: ${trialInLen+1}/${TRIALS_PER_LEN}\n` +
-      `Secuencia: ${currentSeq.join("-")}\n` +
-      `Respuesta:  ${respSeq.join("-")}\n` +
-      `Resultado:  ${ok ? "ACIERTO" : "FALLO"}\n`
-    );
-    updateScoreUI();
+    setStatus();
 
-    await sleep(500);
+    await sleep(ITI_AFTER_RESPONSE_MS);
 
-    // avanzar dentro de la misma longitud
     trialInLen += 1;
 
     if (trialInLen < TRIALS_PER_LEN){
-      await nextTrialSameLen();
+      await nextTrial();
       return;
     }
 
-    // fin de los 2 intentos de esa longitud: regla
+    // fin longitud
     if (correctThisLen >= 1){
-      // sube longitud
       curLen += 1;
       trialInLen = 0;
       correctThisLen = 0;
@@ -267,17 +390,27 @@
       if (curLen > MAX_LEN){
         finish();
       } else {
-        await nextTrialSameLen(); // ahora ya "misma" longitud actual (nueva)
+        await nextTrial();
       }
     } else {
-      // falló 2/2 => termina
       finish();
     }
   }
 
-  async function nextTrialSameLen(){
-    currentSeq = makeRandomSeq(curLen);
-    await flashSequence(currentSeq);
+  function getFixedSeq(len, which){
+    // which: 0 o 1
+    const seqIDs = FIXED_FORWARD[len][which];
+    return idsToIdx(seqIDs);
+  }
+
+  async function nextTrial(){
+    attemptN += 1;
+    setStatus();
+
+    // Secuencia fija: para cada longitud, usamos trialInLen (0/1) como selector
+    currentSeqIdx = getFixedSeq(curLen, trialInLen);
+
+    await flashSequence(currentSeqIdx);
   }
 
   function finish(){
@@ -286,45 +419,46 @@
     setLamp(false);
     btnStart.disabled = false;
 
-    // Span ya es bestSpan (máxima longitud con ≥1 acierto)
-    setStatus(`FIN. Span = ${bestSpan} | Total aciertos = ${totalCorrect}`);
-    updateScoreUI();
+    // Solo info final sin secuencias:
+    hint.textContent = `FIN. Span = ${bestSpan || 0} | Total aciertos = ${totalCorrect}`;
+    setStatus();
   }
 
   function resetAll(){
     running = false;
     accepting = false;
+    setLamp(false);
+    btnStart.disabled = false;
 
-    curLen = START_LEN;
+    curLen = MIN_LEN;
     trialInLen = 0;
-    currentSeq = [];
-    respSeq = [];
+    attemptN = 0;
+    currentSeqIdx = [];
+    respSeqIdx = [];
 
-    totalCorrect = 0;
     bestSpan = 0;
+    totalCorrect = 0;
     correctThisLen = 0;
 
-    setLamp(false);
-    setStatus("Listo.");
-    setLog("");
-    updateScoreUI();
-    btnStart.disabled = false;
-    clearTapVisuals();
+    clearVisuals();
+    hint.textContent = "Toca los bloques en el mismo orden. (No se muestran secuencias.)";
+    setStatus();
   }
 
   async function start(){
     resetAll();
     running = true;
     btnStart.disabled = true;
-    await nextTrialSameLen();
+    await nextTrial();
   }
 
   // init
-  renderBoard();
-  updateScoreUI();
+  renderBlocks();
+  setStatus();
 
-  btnStart.addEventListener('click', start);
+  btnStart.addEventListener('click', () => void start());
   btnReset.addEventListener('click', resetAll);
+
 })();
 </script>
 </body>
