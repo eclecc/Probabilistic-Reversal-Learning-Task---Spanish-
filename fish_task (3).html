@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Fish Task</title>
+<style>
+/* ── Variables ─────────────────────────────────────────── */
+:root {
+  --blue:       #3333CC;
+  --pink:       #FF00CF;
+  --blue-light: #6677FF;
+  --pink-light: #FF55EE;
+  --bg:         #000;
+  --s1:         #0d0d0d;
+  --s2:         #141414;
+  --border:     #222;
+  --border2:    #2d2d2d;
+  --text:       #fff;
+  --muted:      #666;
+  --muted2:     #999;
+  --r:          12px;
+}
+/* ── Reset ─────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{height:100%;}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  min-height:100%;min-height:100dvh;
+  display:flex;align-items:flex-start;justify-content:center;
+  padding:20px 16px 48px;overflow-x:hidden;
+}
+/* ── Screens ───────────────────────────────────────────── */
+.screen{
+  display:none;width:100%;max-width:580px;
+  flex-direction:column;gap:18px;
+  animation:fadeUp .3s ease;
+}
+.screen.active{display:flex;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── Type ──────────────────────────────────────────────── */
+.page-title{font-size:clamp(26px,6vw,36px);font-weight:800;letter-spacing:-.8px;line-height:1.1;}
+.page-sub{font-size:clamp(12px,2.8vw,14px);color:var(--muted2);margin-top:5px;}
+.sec-label{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:700;}
+p.body{font-size:clamp(13px,3.2vw,15px);line-height:1.75;color:#bbb;}
+p.body strong{color:#fff;}
+.c-b{color:var(--blue-light);}
+.c-p{color:var(--pink-light);}
+
+/* ── Divider ───────────────────────────────────────────── */
+hr{border:none;border-top:1px solid var(--border);}
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;
+  padding:14px 20px;border:1px solid var(--border2);border-radius:var(--r);
+  background:var(--s2);color:var(--text);
+  font-size:clamp(14px,3.5vw,16px);font-weight:600;
+  cursor:pointer;transition:background .15s,border-color .15s,transform .1s;
+  width:100%;user-select:none;-webkit-user-select:none;
+  text-align:center;line-height:1.3;
+}
+.btn:active{transform:scale(.97);}
+.btn:hover{background:#1e1e1e;border-color:#333;}
+.btn-white{background:#fff;color:#000;border-color:#fff;font-weight:800;}
+.btn-white:hover{background:#e0e0e0;border-color:#e0e0e0;}
+.btn-ghost{background:transparent;border-color:var(--border2);color:var(--muted2);font-weight:500;}
+.btn-ghost:hover{background:#111;color:#fff;border-color:#444;}
+.btn-row{display:flex;gap:10px;}
+.btn-row .btn{flex:1;}
+
+/* Lake choice buttons */
+.btn-lake{flex-direction:column;gap:4px;padding:16px 12px;}
+.btn-lake .lk-name{font-size:clamp(16px,4vw,20px);font-weight:800;letter-spacing:-.3px;}
+.btn-lake .lk-pct{font-size:clamp(13px,3vw,15px);font-weight:700;}
+.btn-A{border-color:rgba(51,51,204,.5);background:rgba(51,51,204,.08);}
+.btn-A .lk-name,.btn-A .lk-pct .maj{color:var(--blue-light);}
+.btn-A .lk-pct .min{color:var(--pink-light);}
+.btn-A:hover,.btn-A.sel{background:rgba(51,51,204,.2);border-color:var(--blue);}
+.btn-A.sel{box-shadow:0 0 0 2px var(--blue);}
+.btn-B{border-color:rgba(255,0,207,.4);background:rgba(255,0,207,.06);}
+.btn-B .lk-name,.btn-B .lk-pct .maj{color:var(--pink-light);}
+.btn-B .lk-pct .min{color:var(--blue-light);}
+.btn-B:hover,.btn-B.sel{background:rgba(255,0,207,.18);border-color:var(--pink);}
+.btn-B.sel{box-shadow:0 0 0 2px var(--pink);}
+
+/* Count selector */
+.cnt-row{display:flex;gap:8px;}
+.cnt-opt{
+  flex:1;padding:14px 8px;border:2px solid var(--border);border-radius:var(--r);
+  background:var(--s1);color:var(--muted2);font-size:22px;font-weight:800;
+  cursor:pointer;text-align:center;transition:all .15s;
+}
+.cnt-opt:hover{border-color:#444;color:#ccc;}
+.cnt-opt.sel{border-color:#fff;color:#fff;background:#111;}
+
+/* ── Curtain ────────────────────────────────────────────── */
+.curtain{display:flex;flex-direction:column;align-items:center;text-align:center;gap:22px;width:100%;}
+.curt-num{font-size:clamp(70px,20vw,110px);font-weight:900;letter-spacing:-5px;line-height:1;}
+.curt-word{font-size:clamp(14px,4vw,20px);font-weight:400;color:var(--muted2);letter-spacing:3px;text-transform:uppercase;margin-bottom:-12px;}
+
+/* ── Trial ──────────────────────────────────────────────── */
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 14px;background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+}
+.t-tag{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted2);font-weight:700;}
+.dots{display:flex;gap:5px;align-items:center;}
+.dot{width:9px;height:9px;border-radius:50%;border:1px solid var(--border2);background:var(--s2);transition:background .2s;}
+.dot.done{background:var(--muted);}
+.dot.cur{background:#fff;}
+
+/* New fish panel */
+.new-fish-panel{
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  padding:20px;display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.fish-icon{
+  width:clamp(72px,20vw,100px);height:clamp(72px,20vw,100px);
+  animation:fishPop .4s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes fishPop{from{transform:scale(.15) rotate(-30deg);opacity:0;}to{transform:scale(1) rotate(0);opacity:1;}}
+.fish-color-label{font-size:clamp(14px,3.5vw,16px);font-weight:700;}
+
+/* History */
+.hist-panel{
+  background:#080808;border:1px solid var(--border);border-radius:var(--r);padding:14px;
+}
+.hist-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px;min-height:36px;align-items:center;}
+.hf{width:clamp(30px,8vw,42px);height:clamp(30px,8vw,42px);}
+.hf svg{width:100%;height:100%;display:block;}
+.hist-empty{font-size:12px;color:var(--muted);font-style:italic;}
+
+/* Lake reminder bar */
+.lake-reminder{
+  display:flex;justify-content:center;align-items:center;gap:6px;
+  padding:10px 14px;
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  font-size:clamp(13px,3.3vw,15px);font-weight:700;letter-spacing:.3px;
+  flex-wrap:wrap;
+}
+.lr-sep{color:var(--muted);font-weight:400;margin:0 6px;}
+
+/* Organic lake illustration */
+.org-lakes{display:flex;gap:10px;}
+.org-lake{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.org-lake-label{font-size:clamp(12px,2.8vw,14px);font-weight:700;}
+.org-lake-pct{font-size:clamp(14px,3.5vw,17px);font-weight:800;letter-spacing:.5px;}
+.org-lake svg{width:100%;height:auto;display:block;}
+
+/* Fisherman panel */
+.fisherman-panel{
+  display:flex;align-items:flex-end;justify-content:center;gap:16px;
+  padding:0 0 4px;
+}
+.fisherman-svg{width:clamp(70px,18vw,100px);height:auto;flex-shrink:0;}
+.fisherman-caption{
+  font-size:clamp(12px,3vw,14px);color:var(--muted2);line-height:1.5;
+  padding-bottom:6px;
+}
+
+/* Max notice */
+.max-notice{
+  background:rgba(255,200,0,.07);border:1px solid rgba(255,200,0,.2);
+  border-radius:var(--r);padding:12px 16px;
+  font-size:13px;color:#ffe88a;text-align:center;line-height:1.5;
+  display:none;
+}
+.max-notice.show{display:block;}
+
+/* Decision panel */
+.dec-panel{
+  display:none;flex-direction:column;gap:14px;
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:18px;
+}
+.dec-panel.show{display:flex;}
+.dec-q{font-size:clamp(13px,3.2vw,15px);font-weight:600;color:#fff;text-align:center;}
+
+/* Slider */
+.slider-section{display:flex;flex-direction:column;gap:10px;}
+.cert-num{font-size:clamp(36px,9vw,50px);font-weight:900;letter-spacing:-1px;line-height:1;}
+.cert-num span{font-size:.45em;font-weight:400;color:var(--muted2);}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:6px;background:#2a2a2a;border-radius:3px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:28px;height:28px;background:#fff;border-radius:50%;
+  cursor:pointer;box-shadow:0 2px 12px rgba(0,0,0,.7);
+}
+input[type=range]::-moz-range-thumb{
+  width:28px;height:28px;background:#fff;border-radius:50%;border:none;cursor:pointer;
+}
+.slider-ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);}
+
+/* Results */
+.res-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.res-card{
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  padding:22px 16px;text-align:center;
+}
+.res-big{font-size:clamp(48px,13vw,68px);font-weight:900;letter-spacing:-2px;line-height:1;}
+.res-big span{font-size:.4em;font-weight:400;color:var(--muted2);}
+.res-lab{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:700;margin-top:8px;line-height:1.4;}
+.bk-row{
+  background:var(--s1);border:1px solid var(--border);border-radius:var(--r);
+  padding:14px 16px;display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+}
+.bk-name{font-size:11px;font-weight:700;color:var(--muted2);letter-spacing:.5px;text-transform:uppercase;}
+.bk-choice{font-size:clamp(14px,3.5vw,16px);font-weight:700;margin-top:3px;}
+.bk-num .big{font-size:clamp(20px,5vw,26px);font-weight:800;line-height:1;}
+.bk-num .lab{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+.bk-num{text-align:center;}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ INTRO ══════════════════ -->
+<div class="screen active" id="s-intro">
+
+  <div>
+    <div class="page-title">Fish Task</div>
+    <div class="page-sub">Tarea de razonamiento probabilístico</div>
+  </div>
+
+  <hr>
+
+  <p class="body">
+    Hay <strong>dos lagos</strong> con peces de dos colores.<br><br>
+    <strong>Lago A:</strong> <span class="c-b">60% azules</span> · <span class="c-p">40% rosas</span><br>
+    <strong>Lago B:</strong> <span class="c-p">60% rosas</span> · <span class="c-b">40% azules</span><br><br>
+    Un pescador elige <strong>al azar</strong> uno de los dos lagos y pesca únicamente en él.
+    Como el pescador <strong>devuelve cada pez</strong> al lago, la proporción siempre se mantiene.<br><br>
+    Después de cada captura tendrás que decidir:<br>
+    <strong>¿En qué lago está pescando el pescador?</strong>
+  </p>
+
+  <!-- Fisherman + lakes illustration -->
+  <div class="fisherman-panel">
+    <svg class="fisherman-svg" viewBox="0 0 80 120" xmlns="http://www.w3.org/2000/svg">
+      <!-- Body -->
+      <ellipse cx="40" cy="72" rx="13" ry="18" fill="#ccc"/>
+      <!-- Head -->
+      <circle cx="40" cy="46" r="10" fill="#ddd"/>
+      <!-- Hat brim -->
+      <ellipse cx="40" cy="37" rx="14" ry="4" fill="#aaa"/>
+      <!-- Hat top -->
+      <rect x="33" y="26" width="14" height="12" rx="3" fill="#aaa"/>
+      <!-- Arms -->
+      <line x1="27" y1="68" x2="14" y2="78" stroke="#ccc" stroke-width="5" stroke-linecap="round"/>
+      <line x1="53" y1="68" x2="66" y2="60" stroke="#ccc" stroke-width="5" stroke-linecap="round"/>
+      <!-- Fishing rod -->
+      <line x1="66" y1="60" x2="78" y2="22" stroke="#888" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Fishing line -->
+      <line x1="78" y1="22" x2="78" y2="115" stroke="#666" stroke-width="1" stroke-dasharray="3,2"/>
+      <!-- Hook fish -->
+      <path d="M73 112C71 112 70 110.9 70 110 70 109.1 70.9 108 72 108 73.1 108 74 108.9 74 110ZM68 104C66.9 104 66 103.3 65.4 102.7L61 99C61 99 61.1 101.4 62 103.1 59.3 103.8 56.7 104.8 55 105L50 102C50 103.6 51 106 51 106 51 106 50 108.4 50 110L55 107C56.7 107 59.3 107.8 62 108.5 61.1 110.2 61 112.6 61 112.6L65.4 110.1C66 109.5 66.9 109 68 109 72.1 109 78 106.1 78 104.5 78 102.9 72.1 100 68 100Z" fill="#FF00CF"/>
+      <!-- Legs -->
+      <rect x="34" y="86" width="6" height="20" rx="3" fill="#aaa"/>
+      <rect x="42" y="86" width="6" height="20" rx="3" fill="#aaa"/>
+      <!-- Feet -->
+      <ellipse cx="37" cy="106" rx="5" ry="3" fill="#888"/>
+      <ellipse cx="45" cy="106" rx="5" ry="3" fill="#888"/>
+    </svg>
+    <div class="fisherman-caption">
+      El pescador elige<br>un lago al azar<br>y pesca solo en él
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-label" style="margin-bottom:10px;">Distribución de cada lago</div>
+    <div class="org-lakes" id="intro-lakes"></div>
+  </div>
+
+  <hr>
+
+  <div>
+    <div class="sec-label" style="margin-bottom:10px;">Número de lagos a evaluar</div>
+    <div class="cnt-row">
+      <div class="cnt-opt" data-n="1" onclick="setCount(1)">1</div>
+      <div class="cnt-opt sel" data-n="3" onclick="setCount(3)">3</div>
+    </div>
+  </div>
+
+  <button class="btn btn-white" onclick="startTask()">Comenzar tarea →</button>
+
+</div>
+
+<!-- ══════════════════ CURTAIN ══════════════════ -->
+<div class="screen" id="s-curtain">
+  <div class="curtain">
+    <div>
+      <div class="curt-word" id="c-word">Lago</div>
+      <div class="curt-num"  id="c-num">1</div>
+    </div>
+    <hr style="width:100%">
+    <div style="width:100%">
+      <div class="sec-label" style="margin-bottom:10px;text-align:left;">Recuerda los dos lagos</div>
+      <div class="org-lakes" id="c-lakes"></div>
+    </div>
+    <button class="btn btn-white" style="width:100%" onclick="beginLake()">Empezar →</button>
+  </div>
+</div>
+
+<!-- ══════════════════ TRIAL ══════════════════ -->
+<div class="screen" id="s-trial">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <span class="t-tag" id="t-tag">Lago 1 / 3</span>
+    <div class="dots" id="t-dots"></div>
+  </div>
+
+  <!-- New fish -->
+  <div class="new-fish-panel">
+    <div class="sec-label">🎣 Pez capturado</div>
+    <svg id="t-fishsvg" class="fish-icon" viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
+      <path id="t-fishpath"
+        d="M77 46C75.9 46 75 45.1 75 44 75 42.9 75.9 42 77 42 78.1 42 79 42.9 79 44 79 45.1 78.1 46 77 46ZM60 34C57.6 34 55 34.2 52.4 34.6L38 27C38 27 38.1 32.8 40.2 37.2 31.6 39.4 23.5 42 18 42L4 34C4 39.5 7 48 7 48 7 48 4 56.5 4 62L18 54C23.5 54 31.6 56.6 40.2 58.8 38.1 63.2 38 69 38 69L52.4 61.4C55 61.8 57.6 62 60 62 72.7 62 92 52.5 92 48 92 43.5 72.7 34 60 34Z"
+        fill="#3333CC" stroke="#000000" stroke-width="1.5"/>
+    </svg>
+    <div class="fish-color-label" id="t-fishlabel">Pez azul</div>
+  </div>
+
+  <!-- History -->
+  <div class="hist-panel">
+    <div class="sec-label">Peces extraídos</div>
+    <div class="hist-grid" id="t-hist"></div>
+  </div>
+
+  <!-- Decision question + Lake reminder -->
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="font-size:clamp(13px,3.3vw,15px);font-weight:600;color:#ddd;text-align:center;line-height:1.4;padding:4px 0;">
+      ¿Está lo bastante seguro/a para decidir en qué lago está pescando?
+    </div>
+    <div class="lake-reminder">
+      <span>Lago A</span>
+      <span><span style="color:#6677FF;font-weight:800;">60</span><span style="color:var(--muted);">:</span><span style="color:#FF55EE;font-weight:800;">40</span></span>
+      <span class="lr-sep">·</span>
+      <span>Lago B</span>
+      <span><span style="color:#FF55EE;font-weight:800;">60</span><span style="color:var(--muted);">:</span><span style="color:#6677FF;font-weight:800;">40</span></span>
+    </div>
+  </div>
+
+  <!-- Max warning -->
+  <div class="max-notice" id="t-max">
+    ⚠️ Máximo de 10 peces alcanzado — debes tomar una decisión ahora.
+  </div>
+
+  <!-- Action row (decide / otro) — same style for both -->
+  <div class="btn-row" id="t-actions">
+    <button class="btn btn-white" onclick="pressDecide()">Ya me decido</button>
+    <button class="btn btn-white" id="t-otro" onclick="drawNext()">Quiero otro pez</button>
+  </div>
+
+  <!-- Decision panel -->
+  <div class="dec-panel" id="t-dec">
+
+    <div class="dec-q">¿En qué lago está pescando el pescador?</div>
+
+    <div class="btn-row">
+      <button class="btn btn-lake btn-A" id="d-a" onclick="chooseLake('A')">
+        <span class="lk-name">Lago A</span>
+        <span class="lk-pct"><span class="maj">60</span><span style="color:var(--muted)">:</span><span class="min">40</span></span>
+      </button>
+      <button class="btn btn-lake btn-B" id="d-b" onclick="chooseLake('B')">
+        <span class="lk-name">Lago B</span>
+        <span class="lk-pct"><span class="maj">60</span><span style="color:var(--muted)">:</span><span class="min">40</span></span>
+      </button>
+    </div>
+
+    <!-- Slider — appears after choosing lake -->
+    <div id="d-slide-sec" style="display:none;flex-direction:column;gap:14px;">
+      <hr>
+      <div class="sec-label">Nivel de certeza en tu decisión</div>
+
+      <div class="slider-section">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div class="cert-num" id="d-val">50<span>%</span></div>
+          <div style="font-size:12px;color:var(--muted2);text-align:right;line-height:1.5;">
+            Mueve el slider<br>para ajustar
+          </div>
+        </div>
+        <input type="range" id="d-range" min="0" max="100" value="50"
+               oninput="updateCert(this.value)">
+        <div class="slider-ends">
+          <span>Nada seguro/a</span>
+          <span>Completamente seguro/a</span>
+        </div>
+      </div>
+
+      <button class="btn btn-white" onclick="confirmDecision()">Confirmar decisión →</button>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ══════════════════ RESULTS ══════════════════ -->
+<div class="screen" id="s-results">
+
+  <div>
+    <div class="page-title">Resultados</div>
+    <div class="page-sub">Tarea completada</div>
+  </div>
+
+  <hr>
+
+  <div class="res-grid">
+    <div class="res-card">
+      <div class="res-big" id="r-dtd">—</div>
+      <div class="res-lab">Peces hasta<br>decisión (DTD)</div>
+    </div>
+    <div class="res-card">
+      <div class="res-big" id="r-cert">—<span>%</span></div>
+      <div class="res-lab">Certeza<br>media</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="sec-label" style="margin-bottom:10px;">Por lago</div>
+    <div id="r-bk" style="display:flex;flex-direction:column;gap:8px;"></div>
+  </div>
+
+  <hr>
+  <button class="btn btn-ghost" onclick="resetTask()">↩ Reiniciar tarea</button>
+
+</div>
+
+<script>
+/* ─── Constants ─────────────────────────────── */
+const FPATH = "M77 46C75.9 46 75 45.1 75 44 75 42.9 75.9 42 77 42 78.1 42 79 42.9 79 44 79 45.1 78.1 46 77 46ZM60 34C57.6 34 55 34.2 52.4 34.6L38 27C38 27 38.1 32.8 40.2 37.2 31.6 39.4 23.5 42 18 42L4 34C4 39.5 7 48 7 48 7 48 4 56.5 4 62L18 54C23.5 54 31.6 56.6 40.2 58.8 38.1 63.2 38 69 38 69L52.4 61.4C55 61.8 57.6 62 60 62 72.7 62 92 52.5 92 48 92 43.5 72.7 34 60 34Z";
+const BLUE  = '#3333CC';
+const PINK  = '#FF00CF';
+const MAX   = 10;
+
+/* ─── Fish SVG helper ────────────────────────── */
+function fishSVG(color) {
+  return `<svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg"><path d="${FPATH}" fill="${color}" stroke="#000" stroke-width="1.5"/></svg>`;
+}
+
+/* ─── Build organic lake illustration ───────── */
+function buildLakes(id) {
+  // 20 positions spread organically inside a 220×130 ellipse
+  const FISH_POS = [
+    [38,38,1.0,10],[70,28,0.85,-5],[108,22,1.0,8],[145,30,0.9,-10],[178,38,1.05,6],[195,55,0.8,15],
+    [185,75,1.0,-8],[160,90,0.9,5],[125,98,1.05,-12],[88,96,0.85,10],[55,90,1.0,-6],[30,72,0.9,12],
+    [100,55,1.1,-4],[130,62,0.8,18],[68,58,0.85,-15],[155,52,1.0,7],
+    [45,52,0.75,20],[175,68,0.8,-9],[110,78,0.9,3],[82,72,1.0,-14]
+  ];
+
+  // Homogeneously interleaved: 12 majority + 8 minority spread evenly
+  // Positions for minority (8 of 20): every ~2.5 steps → indices 1,4,6,9,11,14,16,18
+  const MIN_IDX = new Set([1,4,6,9,11,14,16,18]);
+
+  function makeColors(majColor, minColor) {
+    return FISH_POS.map((_,i) => MIN_IDX.has(i) ? minColor : majColor);
+  }
+  const A_COLS = makeColors(BLUE, PINK);  // Lago A: blue majority
+  const B_COLS = makeColors(PINK, BLUE);  // Lago B: pink majority
+
+  function ovalLake(name, colors, majIsBlue) {
+    const mc = majIsBlue ? '#6677FF' : '#FF55EE';
+    const sc = majIsBlue ? '#FF55EE' : '#6677FF';
+    const W = 220, H = 130, ocx = W/2, ocy = H/2;
+
+    const fishes = FISH_POS.map(([x, y, sc2, angle], i) => {
+      const c = colors[i];
+      const s = sc2 * 0.22;
+      const ox = x - 96*s/2;
+      const oy = y - 96*s/2;
+      return `<g transform="translate(${ox.toFixed(1)},${oy.toFixed(1)}) scale(${s.toFixed(3)}) rotate(${angle},48,48)">
+        <path d="${FPATH}" fill="${c}" stroke="#000" stroke-width="4"/>
+      </g>`;
+    }).join('');
+
+    return `<div class="org-lake">
+      <div class="org-lake-label">${name}</div>
+      <svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="${ocx}" cy="${ocy}" rx="${ocx-2}" ry="${ocy-2}" fill="none"/>
+        ${fishes}
+        <ellipse cx="${ocx}" cy="${ocy}" rx="${ocx-2}" ry="${ocy-2}"
+          fill="none" stroke="#555" stroke-width="2.5"/>
+      </svg>
+      <div class="org-lake-pct">
+        <span style="color:${mc}">60</span><span style="color:#444">:</span><span style="color:${sc}">40</span>
+      </div>
+    </div>`;
+  }
+
+  document.getElementById(id).innerHTML =
+    ovalLake('Lago A', A_COLS, true) +
+    ovalLake('Lago B', B_COLS, false);
+}
+
+/* ─── State ──────────────────────────────────── */
+let G = {
+  numLakes: 3, lakeIdx: 0, lakes: [],
+  fishShown: 0,
+  deciding: false, chosen: null
+};
+
+// Fixed pseudorandom sequences (a=azul/blue, f=fucsia/pink)
+// Lake 1: a f a f f a a a f a
+// Lake 2: f f f a a f a f a f
+// Lake 3: f a a f a f a a f a
+const SEQUENCES = [
+  ['blue','pink','blue','pink','pink','blue','blue','blue','pink','blue'],
+  ['pink','pink','pink','blue','blue','pink','blue','pink','blue','pink'],
+  ['pink','blue','blue','pink','blue','pink','blue','blue','pink','blue']
+];
+
+function newLakes(n) {
+  // Use the fixed sequences, cycling if n > 3
+  return Array.from({length: n}, (_, i) => ({
+    fish: SEQUENCES[i % SEQUENCES.length],
+    dtd: null, cert: null, chosen: null
+  }));
+}
+
+/* ─── Screen switch ──────────────────────────── */
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+/* ─── INTRO ──────────────────────────────────── */
+function setCount(n) {
+  G.numLakes = n;
+  document.querySelectorAll('.cnt-opt').forEach(el =>
+    el.classList.toggle('sel', +el.dataset.n === n));
+}
+
+function startTask() {
+  G.lakes   = newLakes(G.numLakes);
+  G.lakeIdx = 0;
+  showCurtain();
+}
+
+/* ─── CURTAIN ────────────────────────────────── */
+function showCurtain() {
+  const n = G.lakeIdx + 1;
+  document.getElementById('c-word').textContent =
+    G.numLakes === 1 ? 'Único lago' : `Lago ${n} de ${G.numLakes}`;
+  document.getElementById('c-num').textContent  = n;
+  buildLakes('c-lakes');
+  show('s-curtain');
+}
+
+function beginLake() {
+  G.fishShown = 0;
+  G.deciding  = false;
+  G.chosen    = null;
+  renderTrial();
+  show('s-trial');
+}
+
+/* ─── TRIAL ──────────────────────────────────── */
+function renderTrial() {
+  const lake   = G.lakes[G.lakeIdx];
+  const fi     = G.fishShown;          // 0-based index
+  const isMax  = fi + 1 >= MAX;        // showing fish #10
+
+  /* top bar */
+  document.getElementById('t-tag').textContent =
+    `Lago ${G.lakeIdx+1} / ${G.numLakes}`;
+
+  /* progress dots */
+  let dots = '';
+  for (let i=0; i<MAX; i++) {
+    let cl = 'dot';
+    if (i < fi)       cl += ' done';
+    else if (i === fi) cl += ' cur';
+    dots += `<div class="${cl}"></div>`;
+  }
+  document.getElementById('t-dots').innerHTML = dots;
+
+  /* current fish */
+  const color = lake.fish[fi] === 'blue' ? BLUE : PINK;
+  const lbl   = lake.fish[fi] === 'blue' ? 'Pez azul' : 'Pez rosa';
+  const lc    = lake.fish[fi] === 'blue' ? '#6677FF' : '#FF55EE';
+  document.getElementById('t-fishpath').setAttribute('fill', color);
+  // trigger animation
+  const svg = document.getElementById('t-fishsvg');
+  svg.style.animation = 'none'; void svg.offsetWidth; svg.style.animation = '';
+
+  document.getElementById('t-fishlabel').textContent   = lbl;
+  document.getElementById('t-fishlabel').style.color   = lc;
+
+  /* history — all fish shown so far including current, newest on right */
+  const histEl = document.getElementById('t-hist');
+  histEl.innerHTML = lake.fish.slice(0, fi + 1).map(c =>
+    `<div class="hf">${fishSVG(c==='blue'?BLUE:PINK)}</div>`).join('');
+
+  /* max notice */
+  document.getElementById('t-max').classList.toggle('show', isMax);
+
+  /* reset to action state if not in deciding mode */
+  if (!G.deciding) {
+    document.getElementById('t-actions').style.display = 'flex';
+    document.getElementById('t-dec').classList.remove('show');
+    // hide "otro" at max
+    document.getElementById('t-otro').style.display = isMax ? 'none' : '';
+    // auto-trigger decide at max
+    if (isMax) pressDecide();
+  }
+}
+
+/* ─── ACTIONS ────────────────────────────────── */
+function pressDecide() {
+  G.deciding = true;
+  G.chosen   = null;
+
+  document.getElementById('t-actions').style.display = 'none';
+  const dec = document.getElementById('t-dec');
+  dec.classList.add('show');
+
+  // reset
+  document.getElementById('d-a').classList.remove('sel');
+  document.getElementById('d-b').classList.remove('sel');
+  document.getElementById('d-range').value = 50;
+  updateCert(50);
+  document.getElementById('d-slide-sec').style.display = 'none';
+}
+
+function drawNext() {
+  G.fishShown++;
+  G.deciding = false;
+  G.chosen   = null;
+  document.getElementById('t-dec').classList.remove('show');
+  document.getElementById('t-actions').style.display = 'flex';
+  renderTrial();
+}
+
+function chooseLake(lk) {
+  G.chosen = lk;
+  document.getElementById('d-a').classList.toggle('sel', lk==='A');
+  document.getElementById('d-b').classList.toggle('sel', lk==='B');
+  const sec = document.getElementById('d-slide-sec');
+  sec.style.display = 'flex';
+  setTimeout(()=>sec.scrollIntoView({behavior:'smooth',block:'nearest'}), 80);
+}
+
+function updateCert(v) {
+  document.getElementById('d-val').innerHTML = `${v}<span>%</span>`;
+  document.getElementById('d-range').style.background =
+    `linear-gradient(to right,#fff ${v}%,#2a2a2a ${v}%)`;
+}
+
+function confirmDecision() {
+  if (!G.chosen) return;
+  const lake = G.lakes[G.lakeIdx];
+  lake.dtd    = G.fishShown + 1;   // fish #N shown (1-based, includes current)
+  lake.cert   = +document.getElementById('d-range').value;
+  lake.chosen = G.chosen;
+
+  G.lakeIdx++;
+  if (G.lakeIdx >= G.numLakes) showResults();
+  else showCurtain();
+}
+
+/* ─── RESULTS ────────────────────────────────── */
+function showResults() {
+  const ls = G.lakes;
+  const dtdMean  = ls.reduce((s,l)=>s+l.dtd,0)  / ls.length;
+  const certMean = ls.reduce((s,l)=>s+l.cert,0) / ls.length;
+
+  const dtdFmt = Number.isInteger(dtdMean) ? dtdMean : dtdMean.toFixed(1);
+  document.getElementById('r-dtd').textContent      = dtdFmt;
+  document.getElementById('r-cert').innerHTML       = `${Math.round(certMean)}<span>%</span>`;
+
+  document.getElementById('r-bk').innerHTML = ls.map((l,i)=>{
+    const cc = l.chosen==='A' ? '#6677FF' : '#FF55EE';
+    return `<div class="bk-row">
+      <div>
+        <div class="bk-name">Lago ${i+1}</div>
+        <div class="bk-choice">
+          Decisión: <strong style="color:${cc}">Lago ${l.chosen}</strong>
+        </div>
+      </div>
+      <div class="bk-num">
+        <div class="big">${l.dtd}</div>
+        <div class="lab">peces</div>
+      </div>
+      <div class="bk-num">
+        <div class="big">${l.cert}%</div>
+        <div class="lab">certeza</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  show('s-results');
+}
+
+/* ─── RESET ──────────────────────────────────── */
+function resetTask() {
+  G = {numLakes:3,lakeIdx:0,lakes:[],fishShown:0,deciding:false,chosen:null};
+  document.querySelectorAll('.cnt-opt').forEach(el=>
+    el.classList.toggle('sel',+el.dataset.n===3));
+  show('s-intro');
+}
+
+/* ─── INIT ───────────────────────────────────── */
+buildLakes('intro-lakes');
+</script>
+</body>
+</html>
