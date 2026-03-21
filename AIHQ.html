@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AIHQ — Cuestionario de Intenciones Hostiles</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #0f0f0d;
+    --surf:    #181815;
+    --surf2:   #1f1f1b;
+    --border:  #2a2a26;
+    --text:    #d4d0c8;
+    --dim:     #6b6860;
+    --muted:   #3d3d38;
+    --accent:  #c8b89a;
+    --c-amb:   #7a8a6e;   /* ambiguous — muted green */
+    --c-ambl:  #a0b494;
+    --c-acc:   #5c6a82;   /* accidental — slate */
+    --c-accl:  #7e90a8;
+    --c-int:   #8a7560;   /* intentional — terracotta */
+    --c-intl:  #b09a80;
+    --pos:     #7aa496;
+    --neg:     #b09a80;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100%;
+  }
+
+  body {
+    display: flex;
+    justify-content: center;
+    padding: clamp(20px,5vw,48px) clamp(16px,5vw,40px);
+  }
+
+  .screen { display: none; width: 100%; max-width: 680px; animation: fadeIn .4s ease; }
+  .screen.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── TYPE ── */
+  .label-xs {
+    font-size: 10px; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .display-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(22px,5.5vw,38px);
+    font-weight: 400; line-height: 1.25; color: var(--text);
+  }
+
+  /* ── PROGRESS ── */
+  .progress-wrap {
+    height: 2px; background: var(--surf2); border-radius: 1px;
+    margin-bottom: clamp(24px,5vw,44px); overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--accent);
+    border-radius: 1px; transition: width .4s ease;
+  }
+
+  /* ── INTRO ── */
+  .intro-label { margin-bottom: clamp(20px,4vw,36px); }
+  .intro-title { margin-bottom: clamp(16px,3vw,28px); }
+
+  .intro-body {
+    font-size: clamp(13px,2.5vw,14px); line-height: 1.8;
+    color: var(--dim); border-left: 1px solid var(--border);
+    padding-left: 18px; margin-bottom: 24px;
+  }
+
+  .legend-row {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-bottom: clamp(24px,5vw,40px);
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--dim);
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  /* ── QUESTION ── */
+  .q-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 12px;
+    margin-bottom: clamp(16px,3vw,24px);
+  }
+  .q-type-badge {
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 4px 10px; border-radius: 3px; font-weight: 500;
+    white-space: nowrap; margin-top: 2px; flex-shrink: 0;
+  }
+  .badge-ambiguo  { background: rgba(122,138,110,.15); color: var(--c-ambl); border: 1px solid rgba(122,138,110,.3); }
+  .badge-accidental { background: rgba(92,106,130,.15); color: var(--c-accl); border: 1px solid rgba(92,106,130,.3); }
+  .badge-intencional { background: rgba(138,117,96,.15); color: var(--c-intl); border: 1px solid rgba(138,117,96,.3); }
+
+  .q-scenario {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(19px,3.8vw,26px);
+    font-weight: 500; line-height: 1.5; color: #f0ece4;
+    margin-bottom: 28px;
+    letter-spacing: 0.01em;
+  }
+
+  /* ── FIELD ── */
+  .field-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: #c8c4bc; margin-bottom: 8px; margin-top: 20px;
+  }
+
+  textarea {
+    width: 100%; background: var(--surf); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: clamp(13px,2.5vw,14px);
+    font-weight: 300; outline: none; resize: none; transition: border-color .2s;
+    -webkit-appearance: none; appearance: none;
+  }
+  textarea:focus { border-color: var(--accent); }
+  textarea::placeholder { color: #5a5a54; }
+
+  /* ── LIKERT ── */
+  .likert-wrap { margin-bottom: 4px; }
+
+  .likert-scale {
+    display: flex; gap: clamp(4px,1.5vw,8px);
+    margin-top: 8px; flex-wrap: nowrap;
+  }
+
+  .likert-btn {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  .likert-circle {
+    width: clamp(32px,8vw,44px);
+    height: clamp(32px,8vw,44px);
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(12px,2.5vw,14px);
+    font-variant-numeric: tabular-nums;
+    color: #c8c4bc;
+    transition: all .18s ease;
+    background: var(--surf);
+  }
+
+  .likert-btn.selected .likert-circle {
+    border-color: var(--accent);
+    background: rgba(200,184,154,.15);
+    color: var(--accent);
+    transform: scale(1.08);
+  }
+
+  .likert-anchor {
+    font-size: clamp(9px,1.8vw,11px); color: #c0bab2; text-align: center;
+    line-height: 1.3; max-width: clamp(52px,12vw,72px);
+    word-break: keep-all; hyphens: none;
+  }
+
+  /* continuum arrow row for C and D */
+  .continuum-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding: 0 2px;
+    font-size: 11px; color: #c0bab2;
+  }
+  .continuum-label { white-space: nowrap; flex-shrink: 0; }
+  .continuum-arrow {
+    flex: 1; height: 1px; background: #4a4a44;
+    position: relative;
+  }
+  .continuum-arrow::after {
+    content: ''; position: absolute; right: -1px; top: -3px;
+    border-left: 6px solid #4a4a44;
+    border-top: 3.5px solid transparent;
+    border-bottom: 3.5px solid transparent;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 8px; min-height: 48px;
+    padding: 0 clamp(16px,4vw,28px);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: 'DM Sans', sans-serif; font-size: clamp(13px,2.5vw,14px);
+    font-weight: 400; cursor: pointer; transition: all .2s;
+    background: transparent; color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; user-select: none;
+  }
+  .btn:active, .btn:hover { background: var(--surf); border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
+  .btn-primary:active, .btn-primary:hover { background: var(--c-intl); border-color: var(--c-intl); color: var(--bg); }
+  .btn-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 32px; }
+
+  /* ── RESULTS ── */
+  .score-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: clamp(8px,2vw,14px); margin-bottom: 28px;
+  }
+  .score-card {
+    background: var(--surf); border: 1px solid var(--border);
+    border-radius: 8px; padding: clamp(12px,3vw,18px) clamp(12px,2.5vw,16px);
+  }
+  .score-card-label {
+    font-size: clamp(8px,1.6vw,10px); letter-spacing: 2px;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 6px; line-height: 1.4;
+  }
+  .score-val {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(24px,6vw,32px); font-weight: 400; line-height: 1;
+    margin-bottom: 4px;
+  }
+  .score-val.pos { color: var(--pos); }
+  .score-val.neg { color: var(--neg); }
+  .score-val.neu { color: var(--dim); }
+  .score-range { font-size: 9px; color: var(--muted); }
+  .score-interp { font-size: clamp(10px,2vw,11px); color: var(--dim); margin-top: 4px; line-height: 1.4; }
+
+  .divider { height: 1px; background: var(--border); margin: clamp(18px,3.5vw,26px) 0; }
+
+  .results-raw {
+    background: var(--surf); border: 1px solid var(--border);
+    border-radius: 8px; padding: clamp(14px,3vw,20px); margin-bottom: 20px;
+  }
+  .results-raw .field-label { margin-top: 0; margin-bottom: 12px; }
+  .results-textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px 14px; color: var(--dim);
+    font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 300;
+    line-height: 1.7; resize: none; outline: none; min-height: 200px;
+  }
+  .copy-row { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 10px; }
+  .copy-ok { font-size: 12px; color: var(--pos); opacity: 0; transition: opacity .3s; }
+  .copy-ok.show { opacity: 1; }
+
+  .section-title {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* note box */
+  .note-box {
+    background: var(--surf); border: 1px solid var(--border);
+    border-left: 3px solid var(--c-ambl);
+    border-radius: 6px; padding: 12px 14px;
+    font-size: 12px; color: var(--dim); line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 420px) {
+    .score-grid { grid-template-columns: 1fr; }
+    .legend-row { gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ INTRO ════════════════════════════════════════ -->
+<div class="screen active" id="screen-intro">
+  <div class="label-xs intro-label">Evaluación · Cognición Social</div>
+  <h1 class="display-title intro-title">Cuestionario de Intenciones Ambiguas y Hostilidad</h1>
+
+  <div class="intro-body">
+    Por favor, lea cada situación e imagínese que le ocurre a usted. Para cada una:<br>
+    <strong style="color:var(--text)">A.</strong> Escriba brevemente por qué cree que ocurrió.<br>
+    <strong style="color:var(--text)">B.</strong> Valore si la persona actuó a propósito (1–6).<br>
+    <strong style="color:var(--text)">C.</strong> Valore cuánto le enfada la situación (1–5).<br>
+    <strong style="color:var(--text)">D.</strong> Valore cuánto culpa a la otra persona (1–5).<br>
+    <strong style="color:var(--text)">E.</strong> Escriba qué haría usted en esa situación.
+  </div>
+
+  <div class="legend-row">
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--c-amb)"></div>
+      <span>Situación ambigua</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--c-acc)"></div>
+      <span>Situación accidental</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" style="background:var(--c-int)"></div>
+      <span>Situación intencional</span>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" onclick="startTest()">Comenzar &nbsp;→</button>
+</div>
+
+<!-- ══ QUESTION ═════════════════════════════════════ -->
+<div class="screen" id="screen-question">
+  <div class="progress-wrap">
+    <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+
+  <div class="q-header">
+    <span class="label-xs" id="q-counter">Situación 1 de 8</span>
+    <span class="q-type-badge" id="q-badge">Ambiguo</span>
+  </div>
+
+  <p class="q-scenario" id="q-scenario">…</p>
+
+  <!-- A: causa escrita -->
+  <div class="field-label">A. ¿Cuál crees que es la auténtica razón de lo ocurrido?</div>
+  <textarea id="q-a" rows="2" placeholder="Escribe aquí la causa que se te ocurra…"></textarea>
+
+  <!-- B: intencionalidad 1-6 -->
+  <div class="field-label">B. ¿Crees que lo hizo a propósito?</div>
+  <div class="likert-wrap">
+    <div class="likert-scale" id="scale-b"></div>
+  </div>
+
+  <!-- C: enfado 1-5 -->
+  <div class="field-label">C. ¿Cuánto te enfada esta situación?</div>
+  <div class="likert-wrap">
+    <div class="likert-scale" id="scale-c"></div>
+    <div class="continuum-row">
+      <span class="continuum-label">Nada</span>
+      <div class="continuum-arrow"></div>
+      <span class="continuum-label">Muy enfadado</span>
+    </div>
+  </div>
+
+  <!-- D: culpa 1-5 -->
+  <div class="field-label">D. ¿Cuánto culparías a esa persona?</div>
+  <div class="likert-wrap">
+    <div class="likert-scale" id="scale-d"></div>
+    <div class="continuum-row">
+      <span class="continuum-label">Nada</span>
+      <div class="continuum-arrow"></div>
+      <span class="continuum-label">Mucho</span>
+    </div>
+  </div>
+
+  <!-- E: respuesta escrita -->
+  <div class="field-label">E. ¿Qué harías en esa situación?</div>
+  <textarea id="q-e" rows="2" placeholder="Describe brevemente tu reacción…"></textarea>
+
+  <div class="btn-row">
+    <button class="btn" id="btn-back" onclick="goBack()" style="display:none">← Anterior</button>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary" id="btn-next" onclick="nextQuestion()">Siguiente &nbsp;→</button>
+  </div>
+</div>
+
+<!-- ══ RESULTS ═══════════════════════════════════════ -->
+<div class="screen" id="screen-results">
+  <div class="label-xs" style="margin-bottom:28px">Evaluación completada</div>
+  <h2 class="display-title" style="margin-bottom:6px">Resultados — AIHQ</h2>
+  <p style="font-size:13px;color:var(--dim);margin-bottom:28px">Puntuaciones autoadministradas. Los ítems A y E requieren corrección por evaluadores independientes.</p>
+
+  <div class="note-box">
+    <strong style="color:var(--text)">Puntuación de culpa (Blame score):</strong> suma de B+C+D por ítem (rango 3–16 por ítem). 
+    Las puntuaciones de hostilidad (A) y agresión (E) requieren evaluadores entrenados según el manual de corrección.
+  </div>
+
+  <div class="section-title" style="color:var(--c-ambl)">Ítems ambiguos (principales)</div>
+  <div class="score-grid" id="scores-amb" style="margin-bottom:20px"></div>
+
+  <div class="section-title" style="color:var(--c-accl)">Ítems accidentales</div>
+  <div class="score-grid" id="scores-acc" style="margin-bottom:20px"></div>
+
+  <div class="section-title" style="color:var(--c-intl)">Ítem intencional</div>
+  <div class="score-grid" id="scores-int" style="margin-bottom:28px"></div>
+
+  <div class="divider"></div>
+
+  <div class="section-title" style="color:var(--accent)">Puntuaciones totales de culpa</div>
+  <div class="score-grid" style="margin-bottom:8px">
+    <div class="score-card">
+      <div class="score-card-label">Blame · Ambiguos</div>
+      <div class="score-val neu" id="total-amb">—</div>
+      <div class="score-range">rango 15–80</div>
+      <div class="score-interp" id="interp-amb">—</div>
+    </div>
+    <div class="score-card">
+      <div class="score-card-label">Blame · Accidentales</div>
+      <div class="score-val neu" id="total-acc">—</div>
+      <div class="score-range">rango 6–32</div>
+    </div>
+    <div class="score-card">
+      <div class="score-card-label">Blame · Total (amb+acc)</div>
+      <div class="score-val neu" id="total-all">—</div>
+      <div class="score-range">rango 21–112</div>
+      <div class="score-interp" id="interp-all">—</div>
+    </div>
+  </div>
+  <p style="font-size:10px;color:var(--muted);margin-bottom:28px">
+    Referencia normativa (esquizofrenia): ambiguos M≈42.7 (DE 12.5) · controles M≈33.8 (DE 10.5) — Buck et al. 2017
+  </p>
+
+  <div class="results-raw">
+    <div class="field-label">Resultado completo · formato copiable</div>
+    <textarea class="results-textarea" id="results-ta" readonly></textarea>
+    <div class="copy-row">
+      <span class="copy-ok" id="copy-ok">Copiado ✓</span>
+      <button class="btn" onclick="copyResults()">Copiar resultados</button>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" onclick="restartTest()">Reiniciar</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────
+// type: 'ambiguo' | 'accidental' | 'intencional'
+// Matching to scoring guide items and Buck et al 2017 categories
+const questions = [
+  {
+    id: 1, type: 'ambiguo',
+    scenario: 'Llevas tres semanas en un nuevo trabajo. Un día, te cruzas con uno de tus nuevos compañeros. Te acercas y te dispones a saludarle, pero él pasa de largo sin saludarte.',
+    labelB: '¿Crees que lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a ese compañero de pasar sin saludarte?'
+  },
+  {
+    id: 2, type: 'ambiguo',
+    scenario: 'Tienes una cita con alguien importante. Al llegar a su cita, la secretaria te informa de que la persona no está porque se tomó el día libre.',
+    labelB: '¿Crees que lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de no estar en la cita?'
+  },
+  {
+    id: 3, type: 'ambiguo',
+    scenario: 'Pasas junto a un grupo de adolescentes en un centro comercial y les escuchas empezar a reírse.',
+    labelB: '¿Crees que los adolescentes lo hicieron a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esos adolescentes de reírse al pasar junto a ellos?'
+  },
+  {
+    id: 4, type: 'intencional',
+    scenario: 'Estás conduciendo y la persona del coche de detrás toca el claxon y luego se te cruza en la carretera.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de cruzarse en la carretera?'
+  },
+  {
+    id: 5, type: 'ambiguo',
+    scenario: 'Has quedado a comer en un restaurante con un nuevo amigo, pero él/ella nunca llega a aparecer.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de no aparecer en el restaurante?'
+  },
+  {
+    id: 6, type: 'ambiguo',
+    scenario: 'Estás buscando plaza de aparcamiento durante un rato. Cuando ves una plaza libre, pones el intermitente, te acercas al sitio, pero alguien se te adelanta y aparca su coche en la plaza.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de utilizar tu plaza libre?'
+  },
+  {
+    id: 7, type: 'accidental',
+    scenario: 'Estás bailando en un bar y alguien tropieza sobre ti por detrás.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de tropezar sobre ti?'
+  },
+  {
+    id: 8, type: 'ambiguo',
+    scenario: 'Llamas a un amigo y le dejas un mensaje en el contestador, pidiéndole que te devuelva la llamada. Una semana después no te ha llamado.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de no devolverte la llamada?'
+  },
+  {
+    id: 9, type: 'accidental',
+    scenario: 'Estás viendo un partido de fútbol y tomando una cerveza. De repente, el equipo local marca un gol, la gente comienza a aplaudir y alguien golpea tu brazo y te hace derramar la cerveza sobre tu ropa.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de golpearte el brazo?'
+  },
+  {
+    id: 10, type: 'ambiguo',
+    scenario: 'Un día antes de quedar con alguien, él/ella llama para cancelar la cita. Es la tercera vez consecutiva que hace esto.',
+    labelB: '¿Crees que esa persona lo hizo a propósito?',
+    labelC: '¿Cuánto te enfada esta situación?',
+    labelD: '¿Cuánto culparías a esa persona de cancelar la cita?'
+  }
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let currentQ = 0;
+let answers  = [];   // {type, b, c, d, textA, textE}
+
+// selection state per item
+let selB = 0, selC = 0, selD = 0;
+
+// ── NAVIGATION ───────────────────────────────────────────────────────
+function startTest() {
+  currentQ = 0;
+  answers  = [];
+  showQuestion(0);
+  switchScreen('screen-question');
+}
+
+function showQuestion(idx) {
+  var q = questions[idx];
+  document.getElementById('q-counter').textContent = 'Situación ' + (idx+1) + ' de ' + questions.length;
+
+  var badge = document.getElementById('q-badge');
+  var typeLabel = q.type.charAt(0).toUpperCase() + q.type.slice(1);
+  badge.textContent = typeLabel;
+  badge.className   = 'q-type-badge badge-' + q.type;
+
+  document.getElementById('q-scenario').textContent = q.scenario;
+  document.getElementById('q-a').value = (answers[idx] && answers[idx].textA) || '';
+  document.getElementById('q-e').value = (answers[idx] && answers[idx].textE) || '';
+
+  selB = (answers[idx] && answers[idx].b) || 0;
+  selC = (answers[idx] && answers[idx].c) || 0;
+  selD = (answers[idx] && answers[idx].d) || 0;
+
+  buildScale('scale-b', 6, selB, [
+    'Definitivamente\nNo',
+    'Probablemente\nNo',
+    'Puede\nque No',
+    'Puede\nque Sí',
+    'Probablemente\nSí',
+    'Definitivamente\nSí'
+  ], 'b');
+  buildScale('scale-c', 5, selC, ['','','','',''], 'c');
+  buildScale('scale-d', 5, selD, ['','','','',''], 'd');
+
+  document.getElementById('progress-fill').style.width = ((idx / questions.length)*100)+'%';
+  document.getElementById('btn-back').style.display = idx > 0 ? 'inline-flex' : 'none';
+  document.getElementById('btn-next').textContent = idx < questions.length-1 ? 'Siguiente →' : 'Ver resultados →';
+}
+
+function buildScale(containerId, n, selected, anchors, scaleKey) {
+  var el = document.getElementById(containerId);
+  el.innerHTML = '';
+  for (var i = 1; i <= n; i++) {
+    var btn = document.createElement('div');
+    btn.className = 'likert-btn' + (selected === i ? ' selected' : '');
+    btn.dataset.val = i;
+    btn.dataset.scale = scaleKey;
+    var circle = document.createElement('div');
+    circle.className = 'likert-circle';
+    circle.textContent = i;
+    var anchor = document.createElement('div');
+    anchor.className = 'likert-anchor';
+    anchor.textContent = anchors[i-1] || '';
+    btn.appendChild(circle);
+    btn.appendChild(anchor);
+    btn.addEventListener('click', onLikertClick);
+    el.appendChild(btn);
+  }
+}
+
+function onLikertClick(e) {
+  var btn = e.currentTarget;
+  var val = parseInt(btn.dataset.val);
+  var scale = btn.dataset.scale;
+  if (scale === 'b') selB = val;
+  if (scale === 'c') selC = val;
+  if (scale === 'd') selD = val;
+  // re-render just that scale
+  var scaleId = 'scale-' + scale;
+  var n = scale === 'b' ? 6 : 5;
+  var anchors = scale === 'b'
+    ? ['Definitivamente\nNo','Probablemente\nNo','Puede\nque No','Puede\nque Sí','Probablemente\nSí','Definitivamente\nSí']
+    : ['','','','',''];
+  buildScale(scaleId, n, val, anchors, scale);
+}
+
+function nextQuestion() {
+  saveAnswer();
+  if (currentQ < questions.length - 1) {
+    currentQ++;
+    showQuestion(currentQ);
+    window.scrollTo(0, 0);
+  } else {
+    showResults();
+  }
+}
+
+function goBack() {
+  saveAnswer();
+  currentQ--;
+  showQuestion(currentQ);
+  window.scrollTo(0, 0);
+}
+
+function saveAnswer() {
+  answers[currentQ] = {
+    type:  questions[currentQ].type,
+    b:     selB,
+    c:     selC,
+    d:     selD,
+    textA: document.getElementById('q-a').value.trim(),
+    textE: document.getElementById('q-e').value.trim()
+  };
+}
+
+function switchScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function restartTest() { switchScreen('screen-intro'); }
+
+// ── SCORING ──────────────────────────────────────────────────────────
+function blameScore(a) {
+  return (a.b || 0) + (a.c || 0) + (a.d || 0);
+}
+
+function renderScoreCard(q, a) {
+  var score = blameScore(a);
+  var cls = score >= 12 ? 'neg' : score <= 6 ? 'pos' : 'neu';
+  return '<div class="score-card">'
+    + '<div class="score-card-label">Ítem ' + q.id + '</div>'
+    + '<div class="score-val ' + cls + '">' + score + '</div>'
+    + '<div class="score-range">B:' + (a.b||'—') + ' C:' + (a.c||'—') + ' D:' + (a.d||'—') + ' · rango 3–16</div>'
+    + '</div>';
+}
+
+function showResults() {
+  saveAnswer();
+
+  var amb = [], acc = [], intentional = [];
+  answers.forEach(function(a, i) {
+    if (a.type === 'ambiguo')      amb.push({q: questions[i], a: a});
+    else if (a.type === 'accidental') acc.push({q: questions[i], a: a});
+    else intentional.push({q: questions[i], a: a});
+  });
+
+  document.getElementById('scores-amb').innerHTML = amb.map(function(x){ return renderScoreCard(x.q, x.a); }).join('');
+  document.getElementById('scores-acc').innerHTML = acc.map(function(x){ return renderScoreCard(x.q, x.a); }).join('');
+  document.getElementById('scores-int').innerHTML = intentional.map(function(x){ return renderScoreCard(x.q, x.a); }).join('');
+
+  var sumAmb = amb.reduce(function(s,x){ return s + blameScore(x.a); }, 0);
+  var sumAcc = acc.reduce(function(s,x){ return s + blameScore(x.a); }, 0);
+  var sumAll = sumAmb + sumAcc;
+
+  var totalAmbEl = document.getElementById('total-amb');
+  totalAmbEl.textContent = sumAmb;
+  totalAmbEl.className = 'score-val ' + (sumAmb >= 43 ? 'neg' : sumAmb <= 34 ? 'pos' : 'neu');
+  document.getElementById('interp-amb').textContent = sumAmb >= 43 ? 'Por encima de la media clínica (≥43)' : 'Por debajo de la media clínica (<43)';
+
+  var totalAccEl = document.getElementById('total-acc');
+  totalAccEl.textContent = sumAcc;
+  totalAccEl.className = 'score-val neu';
+
+  var totalAllEl = document.getElementById('total-all');
+  totalAllEl.textContent = sumAll;
+  totalAllEl.className = 'score-val ' + (sumAll >= 76 ? 'neg' : 'neu');
+  document.getElementById('interp-all').textContent = sumAll >= 76 ? 'Por encima de la media clínica (≥76)' : 'Dentro o por debajo de la media clínica';
+
+  // Copyable text
+  var t = '════════════════════════════════\n';
+  t += 'AIHQ — CUESTIONARIO DE INTENCIONES AMBIGUAS Y HOSTILIDAD\n';
+  t += 'Fecha: ' + new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}) + '\n';
+  t += '════════════════════════════════\n\n';
+  t += '── PUNTUACIONES DE CULPA (Blame Score = B+C+D) ────────\n';
+  t += 'Ítems ambiguos:     ' + sumAmb + ' (rango 15–80; ref. esquizofrenia M≈42.7, controles M≈33.8)\n';
+  t += 'Ítems accidentales: ' + sumAcc + ' (rango 6–32)\n';
+  t += 'Total (amb+acc):    ' + sumAll + ' (rango 21–112; ref. esquizofrenia M≈76.0, controles M≈61.2)\n\n';
+  t += '── DETALLE POR ÍTEM ─────────────────────────────────────\n';
+  answers.forEach(function(a, i) {
+    var q = questions[i];
+    var bs = blameScore(a);
+    t += '\n[' + q.id + '] ' + q.scenario.substring(0,60) + '… (' + q.type.toUpperCase() + ')\n';
+    t += '  B (intencionalidad 1–6): ' + (a.b||'—') + '\n';
+    t += '  C (enfado 1–5):          ' + (a.c||'—') + '\n';
+    t += '  D (culpa 1–5):           ' + (a.d||'—') + '\n';
+    t += '  Blame score (B+C+D):     ' + (bs > 0 ? bs : '—') + '\n';
+    if (a.textA) t += '  A (causa escrita):       "' + a.textA + '"\n';
+    if (a.textE) t += '  E (respuesta escrita):   "' + a.textE + '"\n';
+    if (a.textA || a.textE) t += '  → A y E pendientes de puntuación por evaluadores (Hostility/Aggression Bias)\n';
+  });
+  t += '\n── REFERENCIA ────────────────────────────────────────────\n';
+  t += 'Combs, D.R., Penn, D.L., Wicher, M. & Waldheter, E. (2007).\n';
+  t += 'The Ambiguous Intentions Hostility Questionnaire (AIHQ).\n';
+  t += 'Cognitive Neuropsychiatry, 12(2), 128–143.\n';
+  t += 'Buck, B. et al. (2017). Improving measurement of attributional\n';
+  t += 'style in schizophrenia. Journal of Psychiatric Research, 89, 48–54.\n';
+  t += '\n════════════════════════════════\n';
+
+  document.getElementById('results-ta').value = t;
+  document.getElementById('progress-fill').style.width = '100%';
+  switchScreen('screen-results');
+}
+
+function copyResults() {
+  var ta = document.getElementById('results-ta');
+  ta.select();
+  try { navigator.clipboard.writeText(ta.value); } catch(e) { document.execCommand('copy'); }
+  var el = document.getElementById('copy-ok');
+  el.classList.add('show');
+  setTimeout(function(){ el.classList.remove('show'); }, 2000);
+}
+</script>
+</body>
+</html>
