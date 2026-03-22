@@ -312,27 +312,63 @@
     Los tres porcentajes deben sumar siempre 100%.
   </div>
 
-  <div class="intro-example">
-    <p><em>Ejemplo</em> — Apruebas el examen del carné de conducir.</p>
-    <p style="color:var(--text);font-style:italic;margin-bottom:14px">Causa: «He conducido muy bien»</p>
-    <div class="ex-bar-row">
-      <span class="ex-bar-label" style="color:var(--c1l)">Sobre ti</span>
-      <div class="ex-bar-track"><div class="ex-bar-fill" style="width:60%;background:var(--c1)"></div></div>
-      <span class="ex-bar-pct">60%</span>
+  <!-- PRACTICE BLOCK -->
+  <div class="intro-example" style="margin-bottom: clamp(20px,4vw,32px)">
+    <p style="color:var(--text);font-weight:500;margin-bottom:4px">Prueba aquí antes de empezar</p>
+    <p style="margin-bottom:16px"><em>Ejemplo</em> — Apruebas el examen del carné de conducir.</p>
+    <p style="color:var(--text);font-style:italic;margin-bottom:20px">Causa anotada: «He conducido muy bien»</p>
+
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:16px">
+      Mueve los controles — deben sumar 100%
     </div>
-    <div class="ex-bar-row">
-      <span class="ex-bar-label" style="color:var(--c2l)">Otra persona</span>
-      <div class="ex-bar-track"><div class="ex-bar-fill" style="width:20%;background:var(--c2)"></div></div>
-      <span class="ex-bar-pct">20%</span>
+
+    <div class="slider-group" style="margin-bottom:16px">
+      <!-- Sobre ti -->
+      <div class="slider-row">
+        <span class="slider-label" style="color:var(--c1l)">Sobre ti</span>
+        <div class="slider-track-wrap">
+          <div class="track-bg"></div>
+          <div class="track-fill" id="demo-fill-0" style="background:var(--c1)"></div>
+          <div class="slider-thumb" id="demo-thumb-0" style="background:var(--c1l)"></div>
+          <input type="range" id="demo-slider-0" min="0" max="100" value="33" oninput="onDemoSlide(0,this.value)">
+        </div>
+        <span class="slider-pct" id="demo-pct-0">33%</span>
+      </div>
+      <!-- Otra persona -->
+      <div class="slider-row">
+        <span class="slider-label" style="color:var(--c2l)">Otra persona</span>
+        <div class="slider-track-wrap">
+          <div class="track-bg"></div>
+          <div class="track-fill" id="demo-fill-1" style="background:var(--c2)"></div>
+          <div class="slider-thumb" id="demo-thumb-1" style="background:var(--c2l)"></div>
+          <input type="range" id="demo-slider-1" min="0" max="100" value="33" oninput="onDemoSlide(1,this.value)">
+        </div>
+        <span class="slider-pct" id="demo-pct-1">33%</span>
+      </div>
+      <!-- La situación -->
+      <div class="slider-row">
+        <span class="slider-label" style="color:var(--c3l)">La situación</span>
+        <div class="slider-track-wrap">
+          <div class="track-bg"></div>
+          <div class="track-fill" id="demo-fill-2" style="background:var(--c3)"></div>
+          <div class="slider-thumb" id="demo-thumb-2" style="background:var(--c3l)"></div>
+          <input type="range" id="demo-slider-2" min="0" max="100" value="34" oninput="onDemoSlide(2,this.value)">
+        </div>
+        <span class="slider-pct" id="demo-pct-2">34%</span>
+      </div>
     </div>
-    <div class="ex-bar-row">
-      <span class="ex-bar-label" style="color:var(--c3l)">La situación</span>
-      <div class="ex-bar-track"><div class="ex-bar-fill" style="width:20%;background:var(--c3)"></div></div>
-      <span class="ex-bar-pct">20%</span>
+
+    <!-- Total indicator -->
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;font-size:12px;color:var(--dim)">
+      Total: <span id="demo-total" style="font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--pos)">100%</span>
     </div>
   </div>
 
-  <button class="btn btn-primary" onclick="startTest()">Comenzar &nbsp;→</button>
+  <p style="font-size:12px;color:var(--dim);margin-bottom:clamp(20px,4vw,32px);padding-left:2px">
+    Al mover un control los otros dos se ajustan automáticamente para mantener el total en 100%.
+  </p>
+
+  <button class="btn btn-primary" onclick="startTest()">Comenzar el cuestionario &nbsp;→</button>
 </div>
 
 <!-- ══ QUESTION ═══════════════════════════════════════ -->
@@ -664,7 +700,39 @@ function copyResults() {
   setTimeout(function(){ el.classList.remove('show'); }, 2000);
 }
 
+// ── DEMO SLIDERS (intro screen) ─────────────────────────────────────
+var demoVals = [100/3, 100/3, 100/3];
+
+function onDemoSlide(idx, raw) {
+  var nv = Math.max(0, Math.min(100, parseInt(raw)));
+  var others = [0,1,2].filter(function(i){ return i !== idx; });
+  var a = others[0], b = others[1];
+  var oldA = demoVals[a], oldB = demoVals[b], sum = oldA + oldB;
+  demoVals[idx] = nv;
+  var rem = 100 - nv;
+  if (sum < 1e-9) {
+    demoVals[a] = rem / 2;
+    demoVals[b] = rem / 2;
+  } else {
+    demoVals[a] = rem * (oldA / sum);
+    demoVals[b] = rem * (oldB / sum);
+  }
+  renderDemoSliders();
+}
+
+function renderDemoSliders() {
+  for (var i = 0; i < 3; i++) {
+    var pct = Math.round(demoVals[i]);
+    document.getElementById('demo-slider-' + i).value      = pct;
+    document.getElementById('demo-pct-'    + i).textContent = pct + '%';
+    document.getElementById('demo-fill-'   + i).style.width = demoVals[i] + '%';
+    document.getElementById('demo-thumb-'  + i).style.left  = demoVals[i] + '%';
+  }
+  document.getElementById('demo-total').textContent = '100%';
+}
+
 renderSliders();
+renderDemoSliders();
 </script>
 </body>
 </html>
