@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>MCQ-27 – Cuestionario de Elecciones Monetarias</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #111;
+      color: #eee;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+    h1, h2, h3 {
+      font-weight: 600;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.2rem;
+    }
+    h2 {
+      font-size: 1.3rem;
+      margin-top: 2rem;
+    }
+    p {
+      line-height: 1.4;
+    }
+    .card {
+      background: #1c1c1c;
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      margin-top: 1rem;
+    }
+    .question-text {
+      font-size: 1.2rem;
+      margin-bottom: 1.2rem;
+      text-align: center;
+    }
+    .options {
+      display: flex;
+      flex-direction: row;
+      gap: 14px;
+      margin-bottom: 1rem;
+    }
+    .options button {
+      flex: 1;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #2a2a2a;
+      color: #eee;
+      cursor: pointer;
+      font-size: 1rem;
+      text-align: center;
+      padding: 18px 14px;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1.3;
+      transition: background 0.12s, transform 0.05s, border-color 0.12s, box-shadow 0.12s;
+    }
+    .options button:hover {
+      background: #333;
+    }
+    .options button:active {
+      transform: translateY(1px);
+    }
+    .options button.selected {
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 2px rgba(13,110,253,0.6);
+      background: #232a35;
+    }
+    .primary-button {
+      padding: 9px 14px;
+      border-radius: 8px;
+      border: none;
+      background: #0d6efd;
+      color: #fff;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .primary-button[disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
+    .small-text {
+      font-size: 0.85rem;
+      color: #bbb;
+    }
+    .muted {
+      color: #aaa;
+    }
+    .flex-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .flex-space-between {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      background: #222;
+      border: 1px solid #444;
+      color: #ddd;
+    }
+    .hidden {
+      display: none;
+    }
+    #results-summary {
+      margin-bottom: 1rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.5rem;
+    }
+    table th, table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #333;
+      font-size: 0.9rem;
+      text-align: left;
+    }
+    table th {
+      background: #202020;
+    }
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid #444;
+      background: #111;
+      color: #eee;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+    input[type="file"] {
+      margin-top: 6px;
+      font-size: 0.9rem;
+    }
+    code {
+      background: #222;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div id="intro-block">
+    <h1>MCQ-27 – Cuestionario de elecciones monetarias (Kirby)</h1>
+    <p class="small-text">
+      Para cada ítem escoge entre una cantidad menor hoy o una mayor dentro de unos días. 
+      Se registran tus elecciones y el tiempo de reacción (RT) para estimar el parámetro de descuento <code>k</code>.
+    </p>
+  </div>
+
+  <div class="card" id="task-card">
+    <div class="flex-space-between" style="margin-bottom: 0.6rem;">
+      <div class="small-text">
+        Pregunta <span id="trial-number">0</span> de 27
+      </div>
+      <div class="badge" id="debug-badge">modo normal</div>
+    </div>
+
+    <div id="question-block" class="hidden">
+      <div id="question-text" class="question-text"></div>
+      <div class="options" id="options-container">
+        <button id="btnA" type="button"></button>
+        <button id="btnB" type="button"></button>
+      </div>
+      <div class="small-text muted" style="text-align:center;">
+        Puedes responder haciendo clic o usando el teclado: 
+        <code>F</code> / flecha izquierda = opción izquierda (hoy), 
+        <code>J</code> / flecha derecha = opción derecha (después).
+      </div>
+    </div>
+
+    <div id="pre-start">
+      <p>
+        Cuando pulses <strong>Empezar</strong> aparecerán los 27 ítems uno detrás de otro. 
+        No hay respuestas correctas; se trata de tus preferencias.
+      </p>
+      <p class="small-text muted">
+        Durante la tarea solo se mostrará esta pantalla. Al final se calcularán todos los índices (k, -log10(k), AUC, etc.).
+      </p>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <button id="start-btn" class="primary-button">Empezar MCQ-27</button>
+    </div>
+  </div>
+
+  <div id="results-card" class="card hidden">
+    <h2>Resultados del MCQ-27</h2>
+    <div id="results-summary"></div>
+
+    <h3>Output copiable</h3>
+    <p class="small-text muted">
+      Campo listo para pegar en tu pipeline (ahora solo <code>-log10(k)</code>, luego se le pueden añadir más índices).
+    </p>
+    <textarea id="summary-text" readonly></textarea>
+
+    <div class="flex-row" style="margin-top: 0.8rem; margin-bottom: 0.5rem;">
+      <button id="download-csv-btn" class="primary-button">Descargar CSV de respuestas</button>
+      <span class="small-text muted">
+        El CSV sirve tanto para depuración como para recargar los resultados en modo debug.
+      </span>
+    </div>
+
+    <h3>Índices derivados</h3>
+    <table id="indices-table">
+      <thead>
+      <tr>
+        <th>Índice</th>
+        <th>Valor</th>
+      </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div id="debug-card" class="card">
+    <h2>Modo debug (reanálisis desde CSV)</h2>
+    <p class="small-text">
+      Carga un CSV exportado por esta misma página para rehacer el cálculo de <code>k</code>, <code>-log10(k)</code>, AUC, etc.
+      Solo necesita las columnas <code>trial</code>, <code>choice</code> e <code>rt_ms</code>, pero el CSV completo también funciona.
+    </p>
+    <input type="file" id="csv-input" accept=".csv">
+    <p class="small-text muted">
+      Al cargar un CSV, el análisis se recalcula y se muestran de nuevo los resultados (el badge pasa a “modo debug”).
+    </p>
+  </div>
+
+</div>
+
+<!-- SCRIPT 1: datos del MCQ y constantes -->
+<script>
+  // Ítems originales MCQ-27 en castellano + cantidades y demoras
+  const MCQ_ITEMS = [
+    { id: 1,  q: "¿Preferirías €54 hoy o €55 en 117 días?",  a: "€54 hoy",  b: "€55 en 117 días",  immediateAmount: 54, delayedAmount: 55, delayDays: 117, baseK: 0.00016 },
+    { id: 2,  q: "¿Preferirías €55 hoy o €75 en 61 días?",   a: "€55 hoy",  b: "€75 en 61 días",   immediateAmount: 55, delayedAmount: 75, delayDays: 61,  baseK: 0.006 },
+    { id: 3,  q: "¿Preferirías €19 hoy o €25 en 53 días?",   a: "€19 hoy",  b: "€25 en 53 días",   immediateAmount: 19, delayedAmount: 25, delayDays: 53,  baseK: 0.006 },
+    { id: 4,  q: "¿Preferirías €31 hoy o €85 en 7 días?",    a: "€31 hoy",  b: "€85 en 7 días",    immediateAmount: 31, delayedAmount: 85, delayDays: 7,   baseK: 0.25 },
+    { id: 5,  q: "¿Preferirías €14 hoy o €25 en 19 días?",   a: "€14 hoy",  b: "€25 en 19 días",   immediateAmount: 14, delayedAmount: 25, delayDays: 19,  baseK: 0.041 },
+    { id: 6,  q: "¿Preferirías €47 hoy o €50 en 160 días?",  a: "€47 hoy",  b: "€50 en 160 días",  immediateAmount: 47, delayedAmount: 50, delayDays: 160, baseK: 0.0004 },
+    { id: 7,  q: "¿Preferirías €15 hoy o €35 en 13 días?",   a: "€15 hoy",  b: "€35 en 13 días",   immediateAmount: 15, delayedAmount: 35, delayDays: 13,  baseK: 0.1 },
+    { id: 8,  q: "¿Preferirías €25 hoy o €60 en 14 días?",   a: "€25 hoy",  b: "€60 en 14 días",   immediateAmount: 25, delayedAmount: 60, delayDays: 14,  baseK: 0.1 },
+    { id: 9,  q: "¿Preferirías €78 hoy o €80 en 162 días?",  a: "€78 hoy",  b: "€80 en 162 días",  immediateAmount: 78, delayedAmount: 80, delayDays: 162, baseK: 0.00016 },
+    { id: 10, q: "¿Preferirías €40 hoy o €55 en 62 días?",   a: "€40 hoy",  b: "€55 en 62 días",   immediateAmount: 40, delayedAmount: 55, delayDays: 62,  baseK: 0.006 },
+    { id: 11, q: "¿Preferirías €11 hoy o €30 en 7 días?",    a: "€11 hoy",  b: "€30 en 7 días",    immediateAmount: 11, delayedAmount: 30, delayDays: 7,   baseK: 0.25 },
+    { id: 12, q: "¿Preferirías €67 hoy o €75 en 119 días?",  a: "€67 hoy",  b: "€75 en 119 días",  immediateAmount: 67, delayedAmount: 75, delayDays: 119, baseK: 0.001 },
+    { id: 13, q: "¿Preferirías €34 hoy o €35 en 186 días?",  a: "€34 hoy",  b: "€35 en 186 días",  immediateAmount: 34, delayedAmount: 35, delayDays: 186, baseK: 0.00016 },
+    { id: 14, q: "¿Preferirías €27 hoy o €50 en 21 días?",   a: "€27 hoy",  b: "€50 en 21 días",   immediateAmount: 27, delayedAmount: 50, delayDays: 21,  baseK: 0.041 },
+    { id: 15, q: "¿Preferirías €69 hoy o €85 en 91 días?",   a: "€69 hoy",  b: "€85 en 91 días",   immediateAmount: 69, delayedAmount: 85, delayDays: 91,  baseK: 0.0025 },
+    { id: 16, q: "¿Preferirías €49 hoy o €60 en 89 días?",   a: "€49 hoy",  b: "€60 en 89 días",   immediateAmount: 49, delayedAmount: 60, delayDays: 89,  baseK: 0.0025 },
+    { id: 17, q: "¿Preferirías €80 hoy o €85 en 157 días?",  a: "€80 hoy",  b: "€85 en 157 días",  immediateAmount: 80, delayedAmount: 85, delayDays: 157, baseK: 0.0004 },
+    { id: 18, q: "¿Preferirías €24 hoy o €35 en 29 días?",   a: "€24 hoy",  b: "€35 en 29 días",   immediateAmount: 24, delayedAmount: 35, delayDays: 29,  baseK: 0.016 },
+    { id: 19, q: "¿Preferirías €33 hoy o €80 en 14 días?",   a: "€33 hoy",  b: "€80 en 14 días",   immediateAmount: 33, delayedAmount: 80, delayDays: 14,  baseK: 0.1 },
+    { id: 20, q: "¿Preferirías €28 hoy o €30 en 179 días?",  a: "€28 hoy",  b: "€30 en 179 días",  immediateAmount: 28, delayedAmount: 30, delayDays: 179, baseK: 0.0004 },
+    { id: 21, q: "¿Preferirías €34 hoy o €50 en 30 días?",   a: "€34 hoy",  b: "€50 en 30 días",   immediateAmount: 34, delayedAmount: 50, delayDays: 30,  baseK: 0.016 },
+    { id: 22, q: "¿Preferirías €25 hoy o €30 en 80 días?",   a: "€25 hoy",  b: "€30 en 80 días",   immediateAmount: 25, delayedAmount: 30, delayDays: 80,  baseK: 0.0025 },
+    { id: 23, q: "¿Preferirías €41 hoy o €75 en 20 días?",   a: "€41 hoy",  b: "€75 en 20 días",   immediateAmount: 41, delayedAmount: 75, delayDays: 20,  baseK: 0.041 },
+    { id: 24, q: "¿Preferirías €54 hoy o €60 en 111 días?",  a: "€54 hoy",  b: "€60 en 111 días",  immediateAmount: 54, delayedAmount: 60, delayDays: 111, baseK: 0.001 },
+    { id: 25, q: "¿Preferirías €54 hoy o €80 en 30 días?",   a: "€54 hoy",  b: "€80 en 30 días",   immediateAmount: 54, delayedAmount: 80, delayDays: 30,  baseK: 0.016 },
+    { id: 26, q: "¿Preferirías €22 hoy o €25 en 136 días?",  a: "€22 hoy",  b: "€25 en 136 días",  immediateAmount: 22, delayedAmount: 25, delayDays: 136, baseK: 0.001 },
+    { id: 27, q: "¿Preferirías €20 hoy o €55 en 7 días?",    a: "€20 hoy",  b: "€55 en 7 días",    immediateAmount: 20, delayedAmount: 55, delayDays: 7,   baseK: 0.25 }
+  ];
+
+  // Clasificamos automáticamente en small / medium / large por magnitud de la recompensa demorada
+  MCQ_ITEMS.forEach(item => {
+    const L = item.delayedAmount;
+    if (L >= 25 && L <= 35) {
+      item.set = "small";
+    } else if (L >= 50 && L <= 60) {
+      item.set = "medium";
+    } else {
+      item.set = "large";
+    }
+  });
+
+  // Grid de k candidate según Kirby / PhenX
+  const K_GRID = [0.00016, 0.0004, 0.001, 0.0025, 0.006, 0.016, 0.041, 0.10, 0.25];
+
+  // Máxima demora del MCQ-27 (para AUC continua)
+  const MAX_DELAY_DAYS = 186;
+
+  // Normativa aproximada (log10(k)) de Muñoz-Torrecillas et al. 2018 (muestra universitaria española)
+  // log10(k) ~ N(μ, σ²) aprox.
+  const NORM_LOG10K_MU = -1.98;
+  const NORM_LOG10K_SIGMA = 0.56;
+
+  // Ítems de control:
+  //   Inmediato (k mínimo): 1, 6, 9, 13, 20
+  //   Demorado (k máximo): 4, 27, 11, 19, 8
+  const IMMEDIATE_CTRL_IDS = [1, 6, 9, 13, 20];
+  const DELAYED_CTRL_IDS   = [4, 27, 11, 19, 8];
+</script>
+
+<!-- SCRIPT 2: flujo de la tarea y registro de RT -->
+<script>
+  let mcqResults = [];
+  let currentIndex = -1;
+  let questionStartTime = null;
+  let acceptingResponse = false; // para evitar doble respuesta
+
+  const introBlockEl     = document.getElementById("intro-block");
+  const questionBlockEl  = document.getElementById("question-block");
+  const questionTextEl   = document.getElementById("question-text");
+  const btnAEl           = document.getElementById("btnA");
+  const btnBEl           = document.getElementById("btnB");
+  const trialNumberEl    = document.getElementById("trial-number");
+  const startBtnEl       = document.getElementById("start-btn");
+  const resultsCardEl    = document.getElementById("results-card");
+  const debugCardEl      = document.getElementById("debug-card");
+  const debugBadgeEl     = document.getElementById("debug-badge");
+  const preStartEl       = document.getElementById("pre-start");
+
+  function resetTaskState() {
+    mcqResults = [];
+    currentIndex = -1;
+    questionStartTime = null;
+    acceptingResponse = false;
+  }
+
+  function startTask() {
+    resetTaskState();
+    debugBadgeEl.textContent = "modo normal";
+
+    // Solo se ve la tarea durante la administración
+    introBlockEl.classList.add("hidden");
+    resultsCardEl.classList.add("hidden");
+    debugCardEl.classList.add("hidden");
+
+    preStartEl.classList.add("hidden");
+    questionBlockEl.classList.remove("hidden");
+    startBtnEl.textContent = "Repetir MCQ-27";
+    startBtnEl.disabled = true; // se reactivará al terminar
+    nextTrial();
+  }
+
+  function nextTrial() {
+    currentIndex++;
+    btnAEl.classList.remove("selected");
+    btnBEl.classList.remove("selected");
+
+    if (currentIndex >= MCQ_ITEMS.length) {
+      // Fin de la tarea
+      questionBlockEl.classList.add("hidden");
+      startBtnEl.disabled = false;
+      analyzeAndDisplay(mcqResults, false);
+
+      // Al terminar, volvemos a mostrar resultados + debug
+      resultsCardEl.classList.remove("hidden");
+      debugCardEl.classList.remove("hidden");
+      introBlockEl.classList.remove("hidden");
+      return;
+    }
+
+    const item = MCQ_ITEMS[currentIndex];
+    trialNumberEl.textContent = (currentIndex + 1).toString();
+    questionTextEl.textContent = item.q;
+    btnAEl.textContent = item.a; // izquierda = inmediata
+    btnBEl.textContent = item.b; // derecha = demorada
+    questionStartTime = performance.now();
+    acceptingResponse = true;
+  }
+
+  function handleChoice(choiceType, rtOverride) {
+    if (currentIndex < 0 || currentIndex >= MCQ_ITEMS.length) return;
+    const item = MCQ_ITEMS[currentIndex];
+
+    const now = performance.now();
+    const rt = (typeof rtOverride === "number" && isFinite(rtOverride))
+      ? rtOverride
+      : (now - questionStartTime);
+
+    const choiceLabel = choiceType === "immediate" ? item.a : item.b;
+
+    mcqResults.push({
+      trial: item.id,
+      q: item.q,
+      immediateOption: item.a,
+      delayedOption: item.b,
+      choice: choiceType,                    // "immediate" o "delayed"
+      choiceLabel: choiceLabel,
+      rt_ms: Math.round(rt),
+      set: item.set,                         // small / medium / large
+      immediateAmount: item.immediateAmount,
+      delayedAmount: item.delayedAmount,
+      delayDays: item.delayDays,
+      itemK: item.baseK
+    });
+
+    nextTrial();
+  }
+
+  function handleChoiceWithVisual(choiceType) {
+    if (!acceptingResponse) return;
+    acceptingResponse = false;
+
+    const btn = (choiceType === "immediate") ? btnAEl : btnBEl;
+    const rtNow = performance.now() - questionStartTime;
+
+    btn.classList.add("selected");
+    setTimeout(() => {
+      btn.classList.remove("selected");
+      handleChoice(choiceType, rtNow);
+    }, 120);
+  }
+
+  startBtnEl.addEventListener("click", startTask);
+  btnAEl.addEventListener("click", () => handleChoiceWithVisual("immediate"));
+  btnBEl.addEventListener("click", () => handleChoiceWithVisual("delayed"));
+
+  // Teclado: F / flecha izquierda = inmediata; J / flecha derecha = demorada
+  document.addEventListener("keydown", (e) => {
+    if (questionBlockEl.classList.contains("hidden")) return;
+    if (!acceptingResponse) return;
+
+    const key = e.key;
+    if (key === "f" || key === "F" || key === "ArrowLeft") {
+      e.preventDefault();
+      handleChoiceWithVisual("immediate");
+    } else if (key === "j" || key === "J" || key === "ArrowRight") {
+      e.preventDefault();
+      handleChoiceWithVisual("delayed");
+    }
+  });
+</script>
+
+<!-- SCRIPT 3: análisis, k, AUC, percentiles, CSV y modo debug -->
+<script>
+  const resultsSummaryEl  = document.getElementById("results-summary");
+  const indicesTableBody  = document.querySelector("#indices-table tbody");
+  const summaryTextAreaEl = document.getElementById("summary-text");
+  const downloadCsvBtnEl  = document.getElementById("download-csv-btn");
+  const csvInputEl        = document.getElementById("csv-input");
+
+  /** Utilidades matemáticas **/
+
+  function geometricMean(values) {
+    const valid = values.filter(v => typeof v === "number" && isFinite(v) && v > 0);
+    if (!valid.length) return NaN;
+    const sumLog = valid.reduce((acc, v) => acc + Math.log(v), 0);
+    return Math.exp(sumLog / valid.length);
+  }
+
+  // AUC de la función hiperbólica V(D) = 1 / (1 + k D) normalizada a [0, Dmax]
+  function computeAUC(k) {
+    if (!(k > 0)) return NaN;
+    const Dmax = MAX_DELAY_DAYS;
+    return Math.log(1 + k * Dmax) / (k * Dmax);
+  }
+
+  // Aproximación de la CDF normal estándar usando la aproximación de Winitzki para erf
+  function normalCdf(z) {
+    const sign = z < 0 ? -1 : 1;
+    const x = Math.abs(z);
+    const a = 0.147;
+    const erf = sign * Math.sqrt(1 - Math.exp(-x * x * (4 / Math.PI + a * x * x) / (1 + a * x * x)));
+    return 0.5 * (1 + erf);
+  }
+
+  function classifyZ(z) {
+    if (!isFinite(z)) return "indeterminado";
+    if (z <= -0.5) return "baja (descuento bajo, preferencia por el futuro)";
+    if (z >=  0.5) return "alta (descuento alto, preferencia inmediata marcada)";
+    return "media (en torno a la media de adultos jóvenes)";
+  }
+
+  function formatNumber(x, digits = 4, exp = false) {
+    if (!isFinite(x)) return "—";
+    if (exp) return x.toExponential(3);
+    return x.toFixed(digits);
+  }
+
+  /** Estimación de k por “best-fitting k-grid” al estilo Kirby / PhenX **/
+  function estimateKForSet(trials) {
+    const validTrials = trials.filter(t => t && typeof t.immediateAmount === "number");
+    if (!validTrials.length) {
+      return { k: NaN, consistency: NaN, bestKs: [], n: 0 };
+    }
+
+    let bestMatches = -1;
+    let bestKs = [];
+
+    K_GRID.forEach(kVal => {
+      let matches = 0;
+      validTrials.forEach(t => {
+        const Vdel = t.delayedAmount / (1 + kVal * t.delayDays);
+        const predicted = (Vdel >= t.immediateAmount) ? "delayed" : "immediate";
+        if (predicted === t.choice) matches++;
+      });
+      if (matches > bestMatches) {
+        bestMatches = matches;
+        bestKs = [kVal];
+      } else if (matches === bestMatches) {
+        bestKs.push(kVal);
+      }
+    });
+
+    const kEst = geometricMean(bestKs);
+    const consistency = bestMatches / validTrials.length;
+
+    return {
+      k: kEst,
+      consistency: consistency,
+      bestKs: bestKs.slice(),
+      n: validTrials.length
+    };
+  }
+
+  /** Cálculo de métricas a partir de los resultados trial-by-trial **/
+  function computeMetrics(results) {
+    const bySet = { small: [], medium: [], large: [] };
+    let sumRT = 0;
+    let sumRTDelayed = 0;
+    let sumRTImmediate = 0;
+    let nDelayed = 0;
+    let nImmediate = 0;
+
+    const counts = {
+      small:  { delayed: 0, immediate: 0, total: 0 },
+      medium: { delayed: 0, immediate: 0, total: 0 },
+      large:  { delayed: 0, immediate: 0, total: 0 }
+    };
+
+    // Controles
+    let immediateCtrlTotal = 0;
+    let immediateCtrlImmediate = 0;
+    let delayedCtrlTotal = 0;
+    let delayedCtrlDelayed = 0;
+
+    results.forEach(r => {
+      const set = r.set || "small";
+      if (!bySet[set]) bySet[set] = [];
+      bySet[set].push(r);
+
+      counts[set].total++;
+      if (r.choice === "delayed") {
+        counts[set].delayed++;
+        nDelayed++;
+        sumRTDelayed += r.rt_ms;
+      } else {
+        counts[set].immediate++;
+        nImmediate++;
+        sumRTImmediate += r.rt_ms;
+      }
+      sumRT += r.rt_ms;
+
+      // Ítems de control inmediato: miramos % de elecciones inmediatas
+      if (IMMEDIATE_CTRL_IDS.includes(r.trial)) {
+        immediateCtrlTotal++;
+        if (r.choice === "immediate") immediateCtrlImmediate++;
+      }
+      // Ítems de control demorado: miramos % de elecciones demoradas
+      if (DELAYED_CTRL_IDS.includes(r.trial)) {
+        delayedCtrlTotal++;
+        if (r.choice === "delayed") delayedCtrlDelayed++;
+      }
+    });
+
+    const totalTrials = results.length;
+
+    const kSmall  = estimateKForSet(bySet.small);
+    const kMedium = estimateKForSet(bySet.medium);
+    const kLarge  = estimateKForSet(bySet.large);
+
+    const kValues = [kSmall.k, kMedium.k, kLarge.k].filter(v => v > 0);
+    const kComposite = geometricMean(kValues);
+
+    const log10k  = Math.log10(kComposite);
+    const minusLog10k = -log10k;
+    const lnK     = Math.log(kComposite);
+    const auc     = computeAUC(kComposite);
+
+    const z = (log10k - NORM_LOG10K_MU) / NORM_LOG10K_SIGMA;
+    const percentile = normalCdf(z) * 100;
+    const label = classifyZ(z);
+
+    const propDelayedOverall = totalTrials ? nDelayed / totalTrials : NaN;
+
+    const pctImmediateCtrl = immediateCtrlTotal ? (immediateCtrlImmediate / immediateCtrlTotal) : NaN;
+    const pctDelayedCtrl   = delayedCtrlTotal   ? (delayedCtrlDelayed   / delayedCtrlTotal)   : NaN;
+
+    return {
+      kSmall, kMedium, kLarge,
+      kComposite,
+      log10k,
+      minusLog10k,
+      lnK,
+      auc,
+      z,
+      percentile,
+      label,
+      totalTrials,
+      counts,
+      propDelayedOverall,
+      meanRT: totalTrials ? sumRT / totalTrials : NaN,
+      meanRTDelayed: nDelayed ? sumRTDelayed / nDelayed : NaN,
+      meanRTImmediate: nImmediate ? sumRTImmediate / nImmediate : NaN,
+      immediateCtrl: {
+        total: immediateCtrlTotal,
+        immediate: immediateCtrlImmediate,
+        pctImmediate: pctImmediateCtrl
+      },
+      delayedCtrl: {
+        total: delayedCtrlTotal,
+        delayed: delayedCtrlDelayed,
+        pctDelayed: pctDelayedCtrl
+      }
+    };
+  }
+
+  /** Render de resultados en pantalla **/
+  function analyzeAndDisplay(results, fromCsv) {
+    if (!results || !results.length) {
+      resultsSummaryEl.innerHTML = "<p>No hay respuestas para analizar.</p>";
+      resultsCardEl.classList.remove("hidden");
+      return;
+    }
+
+    const metrics = computeMetrics(results);
+    const k = metrics.kComposite;
+
+    const kSmallStr  = formatNumber(metrics.kSmall.k, 5, true);
+    const kMedStr    = formatNumber(metrics.kMedium.k, 5, true);
+    const kLargeStr  = formatNumber(metrics.kLarge.k, 5, true);
+    const kStr       = formatNumber(k, 5, true);
+    const mlogStr    = formatNumber(metrics.minusLog10k, 3, false);
+    const aucStr     = formatNumber(metrics.auc, 3, false);
+    const percStr    = isFinite(metrics.percentile) ? metrics.percentile.toFixed(1) : "—";
+    const propDelayedStr = isFinite(metrics.propDelayedOverall) ? (metrics.propDelayedOverall * 100).toFixed(1) + "%" : "—";
+
+    const pctImmCtrlStr = (metrics.immediateCtrl && isFinite(metrics.immediateCtrl.pctImmediate))
+      ? (metrics.immediateCtrl.pctImmediate * 100).toFixed(1) + "%"
+      : "—";
+    const pctDelCtrlStr = (metrics.delayedCtrl && isFinite(metrics.delayedCtrl.pctDelayed))
+      ? (metrics.delayedCtrl.pctDelayed * 100).toFixed(1) + "%"
+      : "—";
+
+    const modeText = fromCsv ? "Resultados recalculados desde CSV (modo debug)." : "Resultados de la administración actual.";
+    debugBadgeEl.textContent = fromCsv ? "modo debug" : "modo normal";
+
+    resultsSummaryEl.innerHTML = `
+      <p class="small-text">${modeText}</p>
+      <p>
+        <strong>k compuesto (geométrico):</strong> <code>${kStr}</code><br>
+        <strong>-log10(k):</strong> <code>${mlogStr}</code><br>
+        <strong>AUC (hiperbólica continua):</strong> <code>${aucStr}</code><br>
+        <strong>Porcentaje de elecciones demoradas (LL):</strong> ${propDelayedStr}<br>
+        <strong>Percentil aproximado (norma universitarios españoles):</strong> ${percStr} 
+        &nbsp;→ <em>${metrics.label}</em><br>
+        <strong>Control inmediato (ítems 1, 6, 9, 13, 20):</strong> ${pctImmCtrlStr} elecciones inmediatas convenientes (Atención/comprensión de la prueba, fijación solo en la cantidad)<br>
+        <strong>Control demorado (ítems 4, 27, 11, 19, 8):</strong> ${pctDelCtrlStr} elecciones demoradas convenientes (¿fijado en opción inmediata?)
+      </p>
+      <p class="small-text muted">
+        Nota: la norma se basa en Muñoz-Torrecillas et al. (2018, Psicothema, muestra de 196 estudiantes universitarios),
+        usando una aproximación normal de <code>log10(k)</code>. 
+        El cálculo de k sigue las recomendaciones de Kirby (1999, 2000) y el protocolo PhenX PX530301 (MCQ-27).
+        Los ítems de control permiten detectar falta de atención o patrones muy desorganizados.
+      </p>
+    `;
+
+    // Campo de texto copiable (minimal para pipeline)
+    const summaryLine = [
+      `k=${kStr}`,
+      `-log10(k)=${mlogStr}`,
+      `AUC=${aucStr}`,
+      `percentil≈${percStr}`,
+      `categoria="${metrics.label}"`,
+      `ctrl_inmediato_immed=${pctImmCtrlStr}`,
+      `ctrl_demorado_LL=${pctDelCtrlStr}`
+    ].join(" ; ");
+    summaryTextAreaEl.value = summaryLine;
+
+    // Tabla de índices derivados
+    indicesTableBody.innerHTML = "";
+    function addRow(label, value) {
+      const tr = document.createElement("tr");
+      const td1 = document.createElement("td");
+      const td2 = document.createElement("td");
+      td1.textContent = label;
+      td2.textContent = value;
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      indicesTableBody.appendChild(tr);
+    }
+
+    addRow("k (pequeñas cantidades)",  kSmallStr);
+    addRow("k (cantidades medias)",    kMedStr);
+    addRow("k (cantidades grandes)",   kLargeStr);
+    addRow("k compuesto (geométrico)", kStr);
+    addRow("-log10(k)",                mlogStr);
+    addRow("ln(k)",                    formatNumber(metrics.lnK, 4, false));
+    addRow("AUC continua",             aucStr);
+
+    addRow("Consistencia small (ajuste)",  formatNumber(metrics.kSmall.consistency * 100, 1, false) + "%");
+    addRow("Consistencia medium (ajuste)", formatNumber(metrics.kMedium.consistency * 100, 1, false) + "%");
+    addRow("Consistencia large (ajuste)",  formatNumber(metrics.kLarge.consistency * 100, 1, false) + "%");
+
+    addRow("Elecciones LL (small)",   metrics.counts.small.total    ? (metrics.counts.small.delayed    / metrics.counts.small.total    * 100).toFixed(1) + "%" : "—");
+    addRow("Elecciones LL (medium)",  metrics.counts.medium.total   ? (metrics.counts.medium.delayed   / metrics.counts.medium.total   * 100).toFixed(1) + "%" : "—");
+    addRow("Elecciones LL (large)",   metrics.counts.large.total    ? (metrics.counts.large.delayed    / metrics.counts.large.total    * 100).toFixed(1) + "%" : "—");
+    addRow("Elecciones LL (global)",  propDelayedStr);
+
+    addRow("RT medio (ms)",           formatNumber(metrics.meanRT, 1, false));
+    addRow("RT medio elecciones LL",  formatNumber(metrics.meanRTDelayed, 1, false));
+    addRow("RT medio elecciones SS",  formatNumber(metrics.meanRTImmediate, 1, false));
+
+    addRow("Control inmediato – % inmediatas (1,6,9,13,20)", pctImmCtrlStr);
+    addRow("Control demorado – % demoradas (4,27,11,19,8)",   pctDelCtrlStr);
+
+    resultsCardEl.classList.remove("hidden");
+  }
+
+  /** Exportación CSV **/
+  function buildCsv(results) {
+    const header = [
+      "trial",
+      "q_text",
+      "immediate_option",
+      "delayed_option",
+      "choice",
+      "rt_ms",
+      "set",
+      "immediate_amount",
+      "delayed_amount",
+      "delay_days",
+      "item_k"
+    ];
+    const lines = [header.join(",")];
+    results.forEach(r => {
+      const row = [
+        r.trial,
+        r.q,
+        r.immediateOption,
+        r.delayedOption,
+        r.choice,
+        r.rt_ms,
+        r.set,
+        r.immediateAmount,
+        r.delayedAmount,
+        r.delayDays,
+        r.itemK
+      ];
+      lines.push(row.join(","));
+    });
+    return lines.join("\n");
+  }
+
+  downloadCsvBtnEl.addEventListener("click", () => {
+    if (!mcqResults.length) {
+      alert("Primero completa la prueba o carga un CSV en modo debug.");
+      return;
+    }
+    const csv = buildCsv(mcqResults);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "mcq27_respuestas.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  /** Modo debug: leer CSV y rehacer análisis **/
+  function parseCsv(text) {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length <= 1) return [];
+
+    const headerParts = lines[0].split(",");
+    const idxTrial  = headerParts.indexOf("trial");
+    const idxChoice = headerParts.indexOf("choice");
+    const idxRT     = headerParts.indexOf("rt_ms");
+
+    if (idxTrial === -1 || idxChoice === -1 || idxRT === -1) {
+      alert("El CSV debe contener al menos las columnas: trial, choice, rt_ms.");
+      return [];
+    }
+
+    const parsed = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const parts = lines[i].split(",");
+      if (parts.length < 3) continue;
+      const trial = parseInt(parts[idxTrial], 10);
+      if (!isFinite(trial) || trial < 1 || trial > MCQ_ITEMS.length) continue;
+
+      const choiceRaw = (parts[idxChoice] || "").trim().toLowerCase();
+      let choice;
+      if (choiceRaw === "immediate" || choiceRaw === "a") {
+        choice = "immediate";
+      } else if (choiceRaw === "delayed" || choiceRaw === "b") {
+        choice = "delayed";
+      } else {
+        continue;
+      }
+
+      const rt = parseFloat(parts[idxRT]);
+      const item = MCQ_ITEMS[trial - 1];
+
+      parsed.push({
+        trial: item.id,
+        q: item.q,
+        immediateOption: item.a,
+        delayedOption: item.b,
+        choice: choice,
+        choiceLabel: choice === "immediate" ? item.a : item.b,
+        rt_ms: isFinite(rt) ? rt : NaN,
+        set: item.set,
+        immediateAmount: item.immediateAmount,
+        delayedAmount: item.delayedAmount,
+        delayDays: item.delayDays,
+        itemK: item.baseK
+      });
+    }
+
+    return parsed;
+  }
+
+  csvInputEl.addEventListener("change", (evt) => {
+    const file = evt.target.files && evt.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const parsed = parseCsv(text);
+      if (!parsed.length) {
+        alert("No se han podido leer filas válidas del CSV.");
+        return;
+      }
+      mcqResults = parsed; // para poder volver a exportar si hace falta
+      analyzeAndDisplay(parsed, true);
+      resultsCardEl.classList.remove("hidden");
+      debugCardEl.classList.remove("hidden");
+      introBlockEl.classList.remove("hidden");
+    };
+    reader.readAsText(file, "utf-8");
+  });
+</script>
+
+</body>
+</html>
