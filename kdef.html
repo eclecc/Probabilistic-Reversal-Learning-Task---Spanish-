@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reconocimiento de Expresiones Faciales · KDEF</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/webgazer/2.0.1/webgazer.min.js"></script>
+<script src="https://webgazer.cs.brown.edu/webgazer.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -443,39 +443,36 @@ function startCalibration() {
   document.getElementById("screen-intro").classList.remove("active");
   document.getElementById("screen-calib").classList.add("active");
 
-  // Init WebGazer silently
-  webgazer.setGazeListener((data) => {
-    if (!data) return;
-    // Move gaze dot
-    const dot = document.getElementById("gaze-dot");
-    dot.style.left = data.x + "px";
-    dot.style.top  = data.y + "px";
-    // Buffer gaze for current trial
-    if (gazeEnabled) {
-      gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
-    }
-  })
-  .saveDataAcrossSessions(false)
-  .begin()
-  .then(() => {
-    webgazer.showVideoPreview(false).showPredictionPoints(false);
-    showCalibPoint(0);
-  })
-  .catch(() => {
-    // Camera denied — skip calibration and go straight to task
-    document.getElementById("screen-calib").classList.remove("active");
-    startTask();
-  });
+  // Start WebGazer in background — dots appear regardless
+  const wgReady = (typeof webgazer !== "undefined")
+    ? webgazer
+        .setGazeListener((data) => {
+          if (!data) return;
+          const dot = document.getElementById("gaze-dot");
+          dot.style.left = data.x + "px";
+          dot.style.top  = data.y + "px";
+          if (gazeEnabled) {
+            gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
+          }
+        })
+        .saveDataAcrossSessions(false)
+        .begin()
+        .then(() => {
+          webgazer.showVideoPreview(false).showPredictionPoints(false);
+          gazeEnabled = true;
+        })
+        .catch(() => { gazeEnabled = false; })
+    : Promise.resolve();
+
+  // Show first calibration point immediately, no waiting
+  showCalibPoint(0);
 }
 
 function showCalibPoint(idx) {
-  // Remove previous dot
   if (calibDot) calibDot.remove();
   if (idx >= CALIB_POINTS.length) {
-    // Calibration done
     document.getElementById("screen-calib").classList.remove("active");
-    document.getElementById("gaze-dot").style.display = "block";
-    gazeEnabled = true;
+    document.getElementById("gaze-dot").style.display = gazeEnabled ? "block" : "none";
     startTask();
     return;
   }
@@ -489,7 +486,6 @@ function showCalibPoint(idx) {
   calibDot.onclick = () => {
     calibDot.classList.remove("active-dot");
     calibDot.classList.add("done");
-    // Click recorded by WebGazer automatically via DOM listener
     setTimeout(() => showCalibPoint(idx + 1), 300);
   };
   document.body.appendChild(calibDot);
