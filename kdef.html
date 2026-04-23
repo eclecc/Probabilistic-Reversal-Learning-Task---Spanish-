@@ -100,16 +100,15 @@
     display: none;
   }
   .roi-overlay.visible { display: block; }
-  .roi-line {
+  .roi-band {
     position: absolute; left: 0; right: 0;
-    border-top: 1px dashed rgba(91,141,238,0.45);
-    font-size: 0.6rem; color: rgba(91,141,238,0.6);
-    padding-left: 4px;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 5px;
+    box-sizing: border-box;
   }
-  .roi-label {
-    position: absolute; right: 4px;
-    font-size: 0.6rem; color: rgba(91,141,238,0.5);
-    transform: translateY(-100%);
+  .roi-band-label {
+    font-size: 0.6rem; font-weight: 600; letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
 
   /* ── EMOTION BUTTONS ── */
@@ -662,28 +661,25 @@ function startCalibration() {
   webgazer
     .setGazeListener((data) => {
       if (!data) return;
-      // Activate on first data received
       if (!gazeEnabled) {
         gazeEnabled = true;
         setGazeStatus("active", "Seguimiento activo");
         document.getElementById("gaze-dot").style.display = "block";
+        // Safe to hide preview now that we have data
+        try { webgazer.showVideoPreview(false).showPredictionPoints(false); } catch(e) {}
       }
-      // Move dot
       document.getElementById("gaze-dot").style.left = data.x + "px";
       document.getElementById("gaze-dot").style.top  = data.y + "px";
-      // Buffer
-      if (gazeEnabled) {
-        gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
-      }
+      gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
     })
     .saveDataAcrossSessions(false)
     .begin()
-    .then(() => {
-      webgazer.showVideoPreview(false).showPredictionPoints(false);
-      // gazeEnabled will be set on first data point, not here
-    })
-    .catch(() => {
-      setGazeStatus("error", "Cámara denegada — sin gaze");
+    .then(() => { /* gazeEnabled set on first data point */ })
+    .catch((err) => {
+      // Only show error if camera never started sending data
+      setTimeout(() => {
+        if (!gazeEnabled) setGazeStatus("error", "Sin acceso a cámara");
+      }, 3000);
     });
 
   showCalibPoint(0);
@@ -802,20 +798,27 @@ function makeEmoBtn(code) {
 function buildRoiOverlay() {
   const overlay = document.getElementById("roi-overlay");
   overlay.innerHTML = "";
-  ROI_DEFS.forEach(roi => {
-    const line = document.createElement("div");
-    line.className = "roi-line";
-    line.style.top = (roi.yStart * 100) + "%";
-    const label = document.createElement("span");
-    label.className = "roi-label";
-    label.textContent = roi.label;
-    line.appendChild(label);
-    overlay.appendChild(line);
-    // end line
-    const line2 = document.createElement("div");
-    line2.className = "roi-line";
-    line2.style.top = (roi.yEnd * 100) + "%";
-    overlay.appendChild(line2);
+  const bands = [
+    { yStart: 0.25, yEnd: 0.45, color: "rgba(59,130,246,0.18)", border: "rgba(59,130,246,0.5)",  label: "OJOS",  labelColor: "#3b82f6" },
+    { yStart: 0.45, yEnd: 0.62, color: "rgba(139,92,246,0.14)", border: "rgba(139,92,246,0.45)", label: "NARIZ", labelColor: "#8b5cf6" },
+    { yStart: 0.62, yEnd: 0.78, color: "rgba(245,158,11,0.18)", border: "rgba(245,158,11,0.5)",  label: "BOCA",  labelColor: "#f59e0b" },
+  ];
+  bands.forEach(b => {
+    const band = document.createElement("div");
+    band.className = "roi-band";
+    band.style.cssText = `
+      top: ${b.yStart * 100}%;
+      height: ${(b.yEnd - b.yStart) * 100}%;
+      background: ${b.color};
+      border-top: 1px solid ${b.border};
+      border-bottom: 1px solid ${b.border};
+    `;
+    const lbl = document.createElement("span");
+    lbl.className = "roi-band-label";
+    lbl.style.color = b.labelColor;
+    lbl.textContent = b.label;
+    band.appendChild(lbl);
+    overlay.appendChild(band);
   });
 }
 
