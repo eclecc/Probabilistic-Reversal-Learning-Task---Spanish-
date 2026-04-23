@@ -658,14 +658,18 @@ function startCalibration() {
 
   setGazeStatus("waiting", "Solicitando cámara…");
 
+  let gazeTimeout = setTimeout(() => {
+    if (!gazeEnabled) setGazeStatus("waiting", "Cargando modelo…");
+  }, 2000);
+
   webgazer
     .setGazeListener((data) => {
       if (!data) return;
       if (!gazeEnabled) {
+        clearTimeout(gazeTimeout);
         gazeEnabled = true;
         setGazeStatus("active", "Seguimiento activo");
         document.getElementById("gaze-dot").style.display = "block";
-        // Safe to hide preview now that we have data
         try { webgazer.showVideoPreview(false).showPredictionPoints(false); } catch(e) {}
       }
       document.getElementById("gaze-dot").style.left = data.x + "px";
@@ -674,13 +678,8 @@ function startCalibration() {
     })
     .saveDataAcrossSessions(false)
     .begin()
-    .then(() => { /* gazeEnabled set on first data point */ })
-    .catch((err) => {
-      // Only show error if camera never started sending data
-      setTimeout(() => {
-        if (!gazeEnabled) setGazeStatus("error", "Sin acceso a cámara");
-      }, 3000);
-    });
+    .then(() => {})
+    .catch(() => {});
 
   showCalibPoint(0);
 }
