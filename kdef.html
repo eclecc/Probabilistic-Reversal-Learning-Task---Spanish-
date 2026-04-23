@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reconocimiento de Expresiones Faciales · KDEF</title>
-<script src="https://webgazer.cs.brown.edu/webgazer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/clmtrackr@1.1.2/build/clmtrackr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/webgazer@2.1.0/dist/webgazer.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&display=swap');
 
@@ -491,9 +492,11 @@
     <div id="gaze-global" style="display:flex;gap:20px;margin-bottom:16px;flex-wrap:wrap"></div>
     <div id="gaze-by-emo"></div>
     <div class="gaze-precision-note" style="margin-top:12px">
-      ⚠ Datos exploratorios. La precisión de WebGazer tras calibración de 5 puntos es aproximadamente 50–80 px,
-      lo que limita la discriminación entre regiones adyacentes (ej. ojos/nariz).
-      El ratio ojos/boca es el índice más robusto dado el mayor margen entre ambas zonas.
+      ⚠ <b>Datos exploratorios.</b> Las ROIs siguen las proporciones de Calvo et al. (2018, <i>Sci Reports</i>)
+      para el propio KDEF-dyn, corroboradas por Loughland et al. (2002) y Rodríguez-Hidalgo et al. (2025,
+      <i>Behav Sci</i>). Bandas horizontales: ojos+cejas 28–47%, nariz/mejilla 47–64%, boca 64–80% de la
+      altura de imagen. La precisión de WebGazer tras calibración de 5 puntos es aprox. 50–80 px, lo que
+      limita la discriminación entre regiones adyacentes. El ratio ojos/boca es el índice más robusto.
     </div>
   </div>
 
@@ -659,14 +662,23 @@ function startCalibration() {
   setGazeStatus("waiting", "Solicitando cámara…");
 
   let gazeTimeout = setTimeout(() => {
-    if (!gazeEnabled) setGazeStatus("waiting", "Cargando modelo…");
+    if (!gazeEnabled) setGazeStatus("waiting", "Cargando modelo TF… (puede tardar 10-20s)");
   }, 2000);
 
+  // Hard timeout: if no data after 20s, inform user but continue task
+  let gazeHardTimeout = setTimeout(() => {
+    if (!gazeEnabled) {
+      setGazeStatus("error", "Modelo no cargó — sin gaze (red/CORS)");
+    }
+  }, 20000);
+
   webgazer
+    .setTracker("clmtrackr")
     .setGazeListener((data) => {
       if (!data) return;
       if (!gazeEnabled) {
         clearTimeout(gazeTimeout);
+        clearTimeout(gazeHardTimeout);
         gazeEnabled = true;
         setGazeStatus("active", "Seguimiento activo");
         document.getElementById("gaze-dot").style.display = "block";
@@ -733,12 +745,17 @@ function startTask() {
   renderTrial();
 }
 
-// ─── ROI DEFINITIONS (proportional to image height, KDEF frontal face) ───────
-// Based on Loughland et al. 2002 standard face regions
+// ─── ROI DEFINITIONS ─────────────────────────────────────
+// Horizontal band approximation for KDEF frontal face images.
+// Proportions derived from Calvo et al. (2018, Sci Reports) KDEF-dyn
+// eye-tracking validation, and corroborated by Loughland et al. (2002)
+// and landmark-based AOI coordinates from the recent literature
+// (e.g., Rodríguez-Hidalgo et al. 2025, Behav Sci 18:53).
+// Bands are appropriate given WebGazer's ~50-80px precision post-calibration.
 const ROI_DEFS = [
-  { id: "eyes",  yStart: 0.25, yEnd: 0.45, label: "Ojos"  },
-  { id: "nose",  yStart: 0.45, yEnd: 0.62, label: "Nariz" },
-  { id: "mouth", yStart: 0.62, yEnd: 0.78, label: "Boca"  },
+  { id: "eyes",  yStart: 0.28, yEnd: 0.47, label: "Ojos+cejas"   },
+  { id: "nose",  yStart: 0.47, yEnd: 0.64, label: "Nariz/mejilla"},
+  { id: "mouth", yStart: 0.64, yEnd: 0.80, label: "Boca"         },
 ];
 let roiVisible = false;
 let imgRect = null; // updated each trial
@@ -798,9 +815,9 @@ function buildRoiOverlay() {
   const overlay = document.getElementById("roi-overlay");
   overlay.innerHTML = "";
   const bands = [
-    { yStart: 0.25, yEnd: 0.45, color: "rgba(59,130,246,0.18)", border: "rgba(59,130,246,0.5)",  label: "OJOS",  labelColor: "#3b82f6" },
-    { yStart: 0.45, yEnd: 0.62, color: "rgba(139,92,246,0.14)", border: "rgba(139,92,246,0.45)", label: "NARIZ", labelColor: "#8b5cf6" },
-    { yStart: 0.62, yEnd: 0.78, color: "rgba(245,158,11,0.18)", border: "rgba(245,158,11,0.5)",  label: "BOCA",  labelColor: "#f59e0b" },
+    { yStart: 0.28, yEnd: 0.47, color: "rgba(59,130,246,0.18)", border: "rgba(59,130,246,0.5)",  label: "OJOS+CEJAS",    labelColor: "#3b82f6" },
+    { yStart: 0.47, yEnd: 0.64, color: "rgba(139,92,246,0.14)", border: "rgba(139,92,246,0.45)", label: "NARIZ/MEJILLA", labelColor: "#8b5cf6" },
+    { yStart: 0.64, yEnd: 0.80, color: "rgba(245,158,11,0.18)", border: "rgba(245,158,11,0.5)",  label: "BOCA",          labelColor: "#f59e0b" },
   ];
   bands.forEach(b => {
     const band = document.createElement("div");
