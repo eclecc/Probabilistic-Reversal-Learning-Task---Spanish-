@@ -334,6 +334,16 @@
   #gaze-status-dot.error   { background: #f87171; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+  #screen-valid {
+    position: fixed; inset: 0; background: #0f1117;
+    display: none; align-items: center; justify-content: center;
+    flex-direction: column; gap: 20px; z-index: 100;
+  }
+  #screen-valid.active { display: flex; }
+  .valid-error-good  { color: #34d399; font-size: 1.4rem; font-weight: 700; }
+  .valid-error-ok    { color: #fbbf24; font-size: 1.4rem; font-weight: 700; }
+  .valid-error-poor  { color: #f87171; font-size: 1.4rem; font-weight: 700; }
+
   /* Download */
   .btn-dl {
     background: #1e2432; border: 1px solid #2d3748; border-radius: 8px;
@@ -390,9 +400,22 @@
   <div class="calib-title">Calibración del seguimiento ocular</div>
   <div class="calib-sub">
     Mira fijamente cada punto amarillo y haz clic sobre él.<br>
-    Los puntos aparecen de uno en uno.
+    Los puntos aparecen de uno en uno (9 en total).
   </div>
-  <div class="calib-progress" id="calib-progress">Punto 1 de 5</div>
+  <div class="calib-progress" id="calib-progress">Punto 1 de 9</div>
+</div>
+
+<!-- ══════════ VALIDATION ══════════ -->
+<div id="screen-valid">
+  <div class="calib-title">Validación</div>
+  <div class="calib-sub" id="valid-sub">
+    Mira fijamente el punto y espera 2 segundos sin hacer clic.
+  </div>
+  <div class="calib-progress" id="valid-result"></div>
+  <div style="display:flex;gap:12px;margin-top:8px">
+    <button class="btn-primary" id="valid-btn" onclick="finishValidation()" style="display:none">Comenzar tarea →</button>
+    <button class="mode-btn" id="recalib-btn" onclick="recalibrate()" style="display:none">↺ Recalibrar</button>
+  </div>
 </div>
 <div id="screen-intro" class="screen active">
   <div class="intro-title">Reconocimiento de Expresiones Faciales</div>
@@ -586,12 +609,12 @@ let gazeEnabled = false;
 
 // ─── WEBGAZER / CALIBRATION ──────────────────────────────
 const CALIB_POINTS = [
-  { x: 0.1,  y: 0.1  },
-  { x: 0.9,  y: 0.1  },
-  { x: 0.5,  y: 0.5  },
-  { x: 0.1,  y: 0.9  },
-  { x: 0.9,  y: 0.9  }
+  { x: 0.1,  y: 0.1  }, { x: 0.5,  y: 0.1  }, { x: 0.9,  y: 0.1  },
+  { x: 0.1,  y: 0.5  }, { x: 0.5,  y: 0.5  }, { x: 0.9,  y: 0.5  },
+  { x: 0.1,  y: 0.9  }, { x: 0.5,  y: 0.9  }, { x: 0.9,  y: 0.9  },
 ];
+// Validation point: center-right, not used in calibration
+const VALID_POINT = { x: 0.75, y: 0.35 };
 let calibIdx = 0;
 let calibDot = null;
 
@@ -699,9 +722,9 @@ function startCalibration() {
 function showCalibPoint(idx) {
   if (calibDot) calibDot.remove();
   if (idx >= CALIB_POINTS.length) {
+    // Calibration done → go to validation
     document.getElementById("screen-calib").classList.remove("active");
-    document.getElementById("gaze-dot").style.display = gazeEnabled ? "block" : "none";
-    startTask();
+    startValidation();
     return;
   }
   const pt = CALIB_POINTS[idx];
@@ -717,6 +740,93 @@ function showCalibPoint(idx) {
     setTimeout(() => showCalibPoint(idx + 1), 300);
   };
   document.body.appendChild(calibDot);
+}
+
+function startValidation() {
+  document.getElementById("screen-valid").classList.add("active");
+  const vp = VALID_POINT;
+  const vx = vp.x * window.innerWidth;
+  const vy = vp.y * window.innerHeight;
+
+  // Place validation dot (not clickable)
+  const vDot = document.createElement("div");
+  vDot.className = "calib-dot active-dot";
+  vDot.style.left = vx + "px";
+  vDot.style.top  = vy + "px";
+  vDot.style.cursor = "default";
+  vDot.style.pointerEvents = "none";
+  document.body.appendChild(vDot);
+
+  // Collect gaze samples for 2 seconds
+  const samples = [];
+  const listener = (data) => { if (data) samples.push({ x: data.x, y: data.y }); };
+  webgazer.setGazeListener((data) => {
+    if (!data) return;
+    // Keep original listener running too
+    if (!gazeEnabled) {
+      clearTimeout(gazeTimeout);
+      clearTimeout(gazeHardTimeout);
+      gazeEnabled = true;
+      setGazeStatus("active", "Seguimiento activo");
+      document.getElementById("gaze-dot").style.display = "block";
+      try { webgazer.showVideoPreview(false).showPredictionPoints(false); } catch(e) {}
+    }
+    document.getElementById("gaze-dot").style.left = data.x + "px";
+    document.getElementById("gaze-dot").style.top  = data.y + "px";
+    samples.push({ x: data.x, y: data.y });
+    if (gazeEnabled) {
+      gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
+    }
+  });
+
+  document.getElementById("valid-sub").textContent = "Mira fijamente el punto amarillo…";
+
+  setTimeout(() => {
+    vDot.remove();
+    webgazer.setGazeListener((data) => {
+      if (!data) return;
+      document.getElementById("gaze-dot").style.left = data.x + "px";
+      document.getElementById("gaze-dot").style.top  = data.y + "px";
+      if (gazeEnabled) gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
+    });
+
+    if (samples.length === 0) {
+      document.getElementById("valid-result").innerHTML =
+        '<span class="valid-error-poor">Sin datos — WebGazer aún no ha iniciado</span>';
+      document.getElementById("valid-sub").textContent = "Puedes continuar igualmente.";
+    } else {
+      const mx = samples.reduce((s,p) => s + p.x, 0) / samples.length;
+      const my = samples.reduce((s,p) => s + p.y, 0) / samples.length;
+      const errPx = Math.round(Math.sqrt((mx - vx)**2 + (my - vy)**2));
+      const errDeg = (errPx / (window.screen.width / 34.5)).toFixed(1); // ~34.5 px/° at 60cm
+      let cls, label;
+      if (errPx < 80)       { cls = "valid-error-good"; label = "Buena"; }
+      else if (errPx < 150) { cls = "valid-error-ok";   label = "Aceptable"; }
+      else                  { cls = "valid-error-poor";  label = "Baja — considera recalibrar"; }
+      document.getElementById("valid-result").innerHTML =
+        `<span class="${cls}">Precisión: ${label} · Error ${errPx}px (~${errDeg}°)</span>`;
+      document.getElementById("valid-sub").textContent =
+        `${samples.length} muestras recogidas. Puedes empezar o volver a calibrar.`;
+    }
+    document.getElementById("valid-btn").style.display = "inline-block";
+    document.getElementById("recalib-btn").style.display = "inline-block";
+  }, 2500);
+}
+
+function recalibrate() {
+  document.getElementById("screen-valid").classList.remove("active");
+  document.getElementById("screen-calib").classList.add("active");
+  document.getElementById("valid-btn").style.display = "none";
+  document.getElementById("recalib-btn").style.display = "none";
+  document.getElementById("valid-result").innerHTML = "";
+  showCalibPoint(0);
+}
+
+function finishValidation() {
+  if (calibDot) calibDot.remove();
+  document.getElementById("screen-valid").classList.remove("active");
+  document.getElementById("gaze-dot").style.display = gazeEnabled ? "block" : "none";
+  startTask();
 }
 
 // ─── HELPERS ────────────────────────────────────────────
