@@ -316,6 +316,24 @@
     text-transform: uppercase; color: #475569; text-align: center;
   }
 
+  #gaze-status {
+    position: fixed; bottom: 14px; right: 14px;
+    background: #1a1f2e; border: 1px solid #2d3748;
+    border-radius: 20px; padding: 5px 12px;
+    font-size: 0.72rem; color: #64748b;
+    display: none; align-items: center; gap: 6px;
+    z-index: 1000;
+  }
+  #gaze-status.visible { display: flex; }
+  #gaze-status-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: #374151; flex-shrink: 0;
+  }
+  #gaze-status-dot.waiting { background: #f59e0b; animation: pulse 1s infinite; }
+  #gaze-status-dot.active  { background: #34d399; }
+  #gaze-status-dot.error   { background: #f87171; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
   /* Download */
   .btn-dl {
     background: #1e2432; border: 1px solid #2d3748; border-radius: 8px;
@@ -364,6 +382,8 @@
 
 <!-- ── GAZE DOT ── -->
 <div id="gaze-dot"></div>
+<!-- ── GAZE STATUS ── -->
+<div id="gaze-status"><div id="gaze-status-dot"></div><span id="gaze-status-text">Iniciando cámara…</span></div>
 
 <!-- ══════════ CALIBRATION ══════════ -->
 <div id="screen-calib">
@@ -618,32 +638,54 @@ function filterTrialsByMode(allTrials, mode) {
   return shuffle([...picked, ...neutrals]);
 }
 
+function setGazeStatus(state, text) {
+  const el = document.getElementById("gaze-status");
+  const dot = document.getElementById("gaze-status-dot");
+  const txt = document.getElementById("gaze-status-text");
+  el.classList.add("visible");
+  dot.className = state; // waiting | active | error
+  txt.textContent = text;
+}
+
 function startCalibration() {
   document.getElementById("screen-intro").classList.remove("active");
   document.getElementById("screen-calib").classList.add("active");
 
-  // Start WebGazer in background — dots appear regardless
-  const wgReady = (typeof webgazer !== "undefined")
-    ? webgazer
-        .setGazeListener((data) => {
-          if (!data) return;
-          const dot = document.getElementById("gaze-dot");
-          dot.style.left = data.x + "px";
-          dot.style.top  = data.y + "px";
-          if (gazeEnabled) {
-            gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
-          }
-        })
-        .saveDataAcrossSessions(false)
-        .begin()
-        .then(() => {
-          webgazer.showVideoPreview(false).showPredictionPoints(false);
-          gazeEnabled = true;
-        })
-        .catch(() => { gazeEnabled = false; })
-    : Promise.resolve();
+  if (typeof webgazer === "undefined") {
+    setGazeStatus("error", "WebGazer no disponible");
+    showCalibPoint(0);
+    return;
+  }
 
-  // Show first calibration point immediately, no waiting
+  setGazeStatus("waiting", "Solicitando cámara…");
+
+  webgazer
+    .setGazeListener((data) => {
+      if (!data) return;
+      // Activate on first data received
+      if (!gazeEnabled) {
+        gazeEnabled = true;
+        setGazeStatus("active", "Seguimiento activo");
+        document.getElementById("gaze-dot").style.display = "block";
+      }
+      // Move dot
+      document.getElementById("gaze-dot").style.left = data.x + "px";
+      document.getElementById("gaze-dot").style.top  = data.y + "px";
+      // Buffer
+      if (gazeEnabled) {
+        gazeBuffer.push({ x: Math.round(data.x), y: Math.round(data.y), t: Date.now() });
+      }
+    })
+    .saveDataAcrossSessions(false)
+    .begin()
+    .then(() => {
+      webgazer.showVideoPreview(false).showPredictionPoints(false);
+      // gazeEnabled will be set on first data point, not here
+    })
+    .catch(() => {
+      setGazeStatus("error", "Cámara denegada — sin gaze");
+    });
+
   showCalibPoint(0);
 }
 
@@ -842,18 +884,6 @@ function restartTask() {
 }
 
 // ─── RESULTS ─────────────────────────────────────────────
-function showResults() {
-  if (gazeEnabled) {
-    try { webgazer.pause(); } catch(e) {}
-    document.getElementById("gaze-dot").style.display = "none";
-  }
-  show("screen-results");
-  renderSummary();
-  renderThresholds();
-  renderAccuracy();
-  renderNeutral();
-  renderConfusion();
-}
 
 function renderSummary() {
   const grid = document.getElementById("summary-grid");
@@ -1004,6 +1034,7 @@ function showResults() {
   if (gazeEnabled) {
     try { webgazer.pause(); } catch(e) {}
     document.getElementById("gaze-dot").style.display = "none";
+    document.getElementById("gaze-status").classList.remove("visible");
   }
   show("screen-results");
   renderSummary();
